@@ -11,12 +11,13 @@ import { Badge } from "./Badge";
 import { Journey } from "./Journey";
 import { GridView } from "./GridView";
 import { MatrixView } from "./MatrixView";
+import { ProgressTable } from "@/components/dashboard/ProgressTable";
 
-type View = "stack" | "grid" | "matrix";
+type View = "table" | "stack" | "grid" | "matrix";
 
 export function TrackerApp() {
   const people = useScopedPeople();
-  const [view, setView] = useState<View>("stack");
+  const [view, setView] = useState<View>("table");
   const [idx, setIdx] = useState(0);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
@@ -66,8 +67,9 @@ export function TrackerApp() {
     <div className="h-full overflow-auto">
       <div className="mx-auto max-w-[1320px] px-8 pb-24 text-center">
         <div className="mb-[18px] mt-0.5 flex justify-center">
-          <Seg value={view} onChange={setView} options={[{ value: "stack", label: "▤ Stack" }, { value: "grid", label: "▦ Grid" }, { value: "matrix", label: "▥ Matrix" }]} />
+          <Seg value={view} onChange={setView} options={[{ value: "table", label: "☰ Dashboard" }, { value: "stack", label: "▤ Stack" }, { value: "grid", label: "▦ Grid" }, { value: "matrix", label: "▥ Matrix" }]} />
         </div>
+        {view !== "table" && (<>
         <div className="mx-auto flex h-[62px] max-w-[640px] items-center gap-3 rounded-[20px] border border-white/70 bg-[#fffdf7] px-5 shadow-[0_10px_26px_rgba(107,90,58,.16)] focus-within:border-ink">
           <span className="text-mute">⌕</span>
           <input id="tracker-search" value={q} onChange={(e) => { setQ(e.target.value); setIdx(0); }} placeholder="Try “blocked backgrounds in Engineering” or “interns joining Monday”" className="flex-1 bg-transparent text-[17px] outline-none placeholder:text-[#a99d86]" />
@@ -82,8 +84,11 @@ export function TrackerApp() {
             </button>
           ))}
         </div>
+        </>)}
 
-        {!rows.length && <p className="eyebrow mt-16 !tracking-[.14em]" style={{ color: "#b5ab96" }}>Nobody matches</p>}
+        {view === "table" && <ProgressTable people={people} />}
+
+        {view !== "table" && !rows.length && <p className="eyebrow mt-16 !tracking-[.14em]" style={{ color: "#b5ab96" }}>Nobody matches</p>}
 
         {cur && view === "stack" && (
           <div className="mx-auto mt-[26px] grid max-w-[1180px] grid-cols-[400px_1fr] items-start gap-14 text-left">

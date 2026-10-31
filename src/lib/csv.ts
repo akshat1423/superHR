@@ -1,10 +1,11 @@
 import Papa from "papaparse";
-import { DEMO_TODAY, FIELD_KEYS, type FieldKey, type FieldState, type Person } from "./people";
+import { addDays, daysSinceJoining, parseDateISO, todayISO } from "./dates";
+import { FIELD_KEYS, type FieldKey, type FieldState, type Person } from "./people";
 import type { Dept, EmpType, Level, Persona } from "./workflow";
 
 export type CanonKey =
   | "name" | "email" | "phone" | "role" | "department" | "type" | "level" | "start" | "manager"
-  | "dob" | "address" | "pan" | "aadhaar" | "bank" | "photo" | "emergency" | "education" | "prev_employer" | "school";
+  | "dob" | "address" | "pan" | "aadhaar" | "bank" | "photo" | "emergency" | "education" | "prev_employer" | "school" | "location" | "grade";
 
 const ALIASES: Record<CanonKey, string[]> = {
   name: ["full_name", "name", "candidate_name", "candidate", "employee_name"],
@@ -13,7 +14,9 @@ const ALIASES: Record<CanonKey, string[]> = {
   role: ["role", "title", "job_title", "designation", "position"],
   department: ["department", "dept", "team", "function"],
   type: ["emp_type", "employment_type", "type", "worker_type", "contract_type"],
-  level: ["level", "grade", "band", "seniority"],
+  level: ["level", "seniority", "level_band"],
+  grade: ["grade", "band", "job_grade", "grade_code"],
+  location: ["location", "office", "city", "work_location", "base_location"],
   start: ["start_date", "joining_date", "doj", "date_of_joining", "join_date"],
   manager: ["manager", "reporting_manager", "hiring_manager"],
   dob: ["dob", "date_of_birth", "birth_date"],
@@ -69,17 +72,13 @@ export function resolvePersona(row: { type: string; dept: string; level: string;
   return { persona: { type, dept, level }, guessed, issues };
 }
 
-function parseDate(v: string): number | null {
-  const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/) ?? v.trim().match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/);
-  if (!m) return null;
-  const [y, mo, d] = m[1].length === 4 ? [+m[1], +m[2], +m[3]] : [+m[3], +m[2], +m[1]];
-  const dt = new Date(y, mo - 1, d);
-  return Number.isNaN(dt.getTime()) ? null : Math.round((DEMO_TODAY.getTime() - dt.getTime()) / 86_400_000);
-}
-
 export function parseAts(text: string, idStart = 0): ParsedAts {
   const res = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true, transformHeader: (h) => h.trim() });
-  const headers = res.meta.fields ?? [];
+  return parseAtsRows(res.meta.fields ?? [], res.data, idStart);
+}
+
+/** Build people from already-parsed rows — shared by CSV, Excel and JSON uploads. */
+export function parseAtsRows(headers: string[], data: Record<string, string>[], idStart = 0): ParsedAts {
   const mapping: Record<string, CanonKey | null> = {};
   const byCanon: Partial<Record<CanonKey, string>> = {};
   for (const h of headers) {
@@ -96,12 +95,13 @@ export function parseAts(text: string, idStart = 0): ParsedAts {
     Address: "address", PAN: "pan", Aadhaar: "aadhaar", "Bank a/c": "bank", Photo: "photo", "Emergency contact": "emergency",
   };
 
-  const people: Person[] = res.data
+  const people: Person[] = data
     .filter((r) => get(r, "name"))
     .map((row, i) => {
       const { persona, guessed, issues } = resolvePersona({ type: get(row, "type"), dept: get(row, "department"), level: get(row, "level"), role: get(row, "role") });
-      let day = parseDate(get(row, "start"));
-      if (day === null) { day = -7; issues.push("start date missing or unreadable → assumed 7 days out"); }
+      let startDate = parseDateISO(get(row, "start"));
+      if (startDate === null) { startDate = addDays(todayISO(), 7); issues.push("start date missing or unreadable → assumed 7 days out"); }
+      const dobISO = parseDateISO(get(row, "dob"));
       const fields: Partial<Record<FieldKey, FieldState>> = {};
       for (const k of FIELD_KEYS) fields[k] = get(row, FIELD_SOURCE[k]) ? "ats" : "missing";
       const name = get(row, "name");
@@ -117,7 +117,12 @@ export function parseAts(text: string, idStart = 0): ParsedAts {
         manager: get(row, "manager") || "Unassigned",
         school: get(row, "school") || get(row, "education"),
         photoUrl: /^https?:/.test(photo) ? photo : undefined,
-        day,
+        location: get(row, "location") || "Unspecified",
+        grade: get(row, "grade") || persona.level,
+        dob: dobISO ?? undefined,
+        address: get(row, "address") || undefined,
+        startDate,
+        day: daysSinceJoining(startDate),
         fields,
         manual: {},
         issues,
@@ -125,5 +130,5 @@ export function parseAts(text: string, idStart = 0): ParsedAts {
       };
     });
 
-  return { headers, mapping, unmapped, rows: res.data, people };
+  return { headers, mapping, unmapped, rows: data, people };
 }

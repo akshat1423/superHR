@@ -1,0 +1,30 @@
+id,item,kind,owner,due_offset,departments,locations,countries,roles,grades,types,depends_on,policy,policy_in,policy_us,doc_type,because
+R-DOC-ID,Government photo ID,document,Employee,-7,,,,,,,,,POL-01,POL-02,id_proof,Identity must be verified for every new joiner before joining
+R-DOC-ADDR,Proof of address (last 3 months),document,Employee,-7,,,,,,,,,POL-01,POL-02,address_proof,Current address is needed for the HR record and background verification
+R-DOC-PAN,PAN card,document,Employee,-7,,,IN,,,,,POL-03,,,pan_card,A PAN is mandatory for payroll in India
+R-DOC-EDU,Education certificate (highest qualification),document,Employee,-7,,,,,Associate|Mid|Senior|Leader,,,,POL-01,POL-02,education_cert,Roles above internship specify a minimum qualification that must be verified
+R-DOC-PREV,Relieving / experience letter,document,Employee,-5,,,IN,,Mid|Senior|Leader,,,POL-01,,,prev_employment,Experienced hires must evidence their last employment
+R-DOC-I9,Form I-9 work-authorisation document,document,Employee,-3,,,US,,,,,POL-02,,,us_work_auth,U.S. employers must verify work authorisation for every hire
+R-INT-AGREE,Internship agreement signed,activity,HR,-5,,,,,,Intern,,POL-01,,,,Interns sign an internship agreement instead of submitting education and employment documents
+R-BGV,Background verification,activity,Compliance,-3,,,,,,,R-DOC-ID|R-DOC-ADDR,POL-04,,,,Background verification is required before system access is granted
+R-REC,HR employee record created,record,HR,-3,,,,,,,R-DOC-ID|R-DOC-ADDR|R-DOC-PAN|R-DOC-EDU|R-DOC-I9|R-INT-AGREE,,POL-03,POL-02,,"The HR record is created once the required identity, address and qualification documents are accepted"
+R-APP-EXEC,Executive laptop approval,approval,Dept Head,-4,,,,,Leader,,R-REC,POL-05,,,,Leader-grade employees receive an executive laptop that needs their department head's approval
+R-IT-MAIL,Email account,provision,IT,-2,,,,,,,R-REC,POL-05,,,,An email account is requested after the HR record is created
+R-IT-LAP,Laptop,provision,IT,-2,,,,,,,R-REC|R-APP-EXEC,POL-05,,,,A laptop is requested after the HR record is created
+R-FAC-BADGE,ID card and building access,provision,Facilities,-2,,,,,,,R-REC,POL-10,,,,Facilities issue an ID card and building access once the HR record exists
+R-FAC-DESK,Desk allocation,provision,Facilities,-1,,,,,,,R-REC,POL-10,,,,A desk is allocated the day before the employee joins
+R-POL-INFOSEC,Information security acknowledgement,policy,Employee,-1,,,,,,,,POL-06,,,,Required before access to production systems
+R-POL-CODE,Code of Conduct acknowledgement,policy,Employee,0,,,,,,,,POL-07,,,,Every new joiner acknowledges the Code of Conduct by their first day
+R-POL-POSH,POSH awareness acknowledgement,policy,Employee,3,,,IN,,,,,POL-08,,,,The POSH Act requires awareness and acknowledgement within 3 days for employees in India
+R-POL-HARASS,Anti-harassment policy acknowledgement,policy,Employee,0,,,US,,,,,POL-09,,,,U.S. employees acknowledge the anti-harassment policy during onboarding
+R-ACC-ENG,"Engineering tool access (source control, Jira, cloud)",provision,IT,0,Engineering,,,,,,R-BGV|R-IT-MAIL|R-POL-INFOSEC,POL-06,,,,"Engineers need development tools; production access needs BGV clearance, an email account and the security acknowledgement"
+R-APP-FIN,Finance ledger access approval,approval,Dept Head,-1,Finance,,,,Senior|Leader,,R-REC,POL-06,,,,Senior finance roles need the Finance Head's approval for ledger access
+R-ACC-FIN,"Finance system access (ledger, expense tools)",provision,IT,0,Finance,,,,,,R-BGV|R-IT-MAIL|R-POL-INFOSEC|R-APP-FIN,POL-06,,,,Finance staff need ledger and expense systems after BGV clearance and the security acknowledgement
+R-ACC-PROD,"Product tool access (design, roadmap, analytics)",provision,IT,0,Product,,,,,,R-BGV|R-IT-MAIL,POL-06,,,,Product roles need design and roadmap tools after BGV clearance
+R-ACC-BIZ,Sales and CRM access,provision,IT,0,Business,,,,,,R-BGV|R-IT-MAIL,POL-06,,,,Business roles need CRM access after BGV clearance
+R-ACC-PPL,HR systems access,provision,IT,0,People,,,,,,R-BGV|R-IT-MAIL|R-POL-INFOSEC,POL-06,,,,People-team roles handle personal data and need HR systems after BGV clearance and the security acknowledgement
+R-MGR-D1,Day-1 agenda and buddy,activity,Manager,-1,,,,,,,,POL-10,,,,Managers send the day-1 agenda and assign a buddy the day before
+R-INT-MENTOR,Mentor assigned,activity,Manager,-2,,,,,,Intern,,POL-10,,,,Every intern is assigned a mentor before they start
+R-PT-SCHED,Weekly schedule agreed,activity,Manager,-2,,,,,,Part-time,,POL-10,,,,Part-time employees agree their weekly schedule with their manager before joining
+R-TRAIN-ORI,Company orientation,activity,HR,0,,,,,,,,POL-10,,,,HR runs orientation for every new joiner on the first day
+R-TRAIN-SEC,Secure-coding training,activity,Manager,7,Engineering,,,,,,,POL-06,,,,Engineers complete secure-coding training in their first 7 days

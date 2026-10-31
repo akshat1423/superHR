@@ -49,7 +49,7 @@ function recipientFor(person: Person, step: PersonStep, level: Level): Recipient
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** Paper-coloured HTML email: renders the same in the preview iframe and in a real inbox. */
-function wrap(title: string, paragraphs: string[], bullets: string[], cta: { label: string; url: string }): string {
+export function wrap(title: string, paragraphs: string[], bullets: string[], cta: { label: string; url: string }): string {
   return `<!doctype html><html><body style="margin:0;background:#e8e0cf;padding:28px 12px;font-family:Helvetica,Arial,sans-serif;color:#17130e">
 <table role="presentation" align="center" width="560" style="max-width:560px;width:100%;background:#f4efe3;border-radius:16px;border:1px solid #d8cfba"><tr><td style="padding:28px 30px">
 <div style="font-size:22px;font-weight:800;letter-spacing:-.03em">super<i style="font-family:Georgia,serif;font-weight:400">join</i></div>

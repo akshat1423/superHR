@@ -2,9 +2,9 @@ import { type Owner, type Perm } from "./catalog";
 import { flatSteps, type Persona, type Step } from "./workflow";
 import { hash01 } from "./utils";
 
-/** Fixed "today" for the demo so prerendering and hydration agree. */
-export const DEMO_TODAY = new Date(2026, 9, 31);
-const MS_DAY = 86_400_000;
+import { DEMO_TODAY, MS_DAY } from "./dates";
+import { countryOf } from "./geo";
+export { DEMO_TODAY };
 
 export const fmtDate = (daysSinceJoining: number) => {
   const d = new Date(DEMO_TODAY.getTime() - daysSinceJoining * MS_DAY);
@@ -46,7 +46,17 @@ export interface Person {
   manager: string;
   school: string;
   photoUrl?: string;
-  /** days since joining; negative = joins in the future */
+  /** office / city; drives location-specific requirements and policies */
+  location: string;
+  /** raw grade label from the HR system (e.g. "L4"); `persona.level` is its normalised band */
+  grade: string;
+  /** date of birth, ISO yyyy-mm-dd, used to cross-check documents */
+  dob?: string;
+  /** current address from the HR system, used for sample documents */
+  address?: string;
+  /** joining date, ISO yyyy-mm-dd — the single source of truth for `day` */
+  startDate: string;
+  /** days since joining; negative = joins in the future (derived from startDate) */
   day: number;
   fields: Partial<Record<FieldKey, FieldState>>;
   /** user-forced step statuses, keyed by step id */
@@ -72,7 +82,8 @@ export function deriveSteps(p: Person): PersonStep[] {
     let note = "";
     const due = s.day <= p.day;
 
-    const needs = (NEEDS[s.key] ?? []).filter((f) => !(isIntern && f === "Prev. employer"));
+    const relevant = new Set<FieldKey>(visibleFields(p));
+    const needs = (NEEDS[s.key] ?? []).filter((f) => relevant.has(f) && !(isIntern && f === "Prev. employer"));
     const missing = needs.filter((f) => p.fields[f] === "missing");
     const requested = needs.filter((f) => p.fields[f] === "req");
     if (missing.length) {
@@ -102,7 +113,12 @@ export const healthOf = (steps: PersonStep[]): Health => {
 };
 /** Fields we ask this person for (interns aren't asked for a previous employer). */
 export const visibleFields = (p: Person) =>
-  FIELD_KEYS.filter((k) => !(p.persona.level === "Intern" && k === "Prev. employer"));
+  FIELD_KEYS.filter((k) => {
+    if (p.persona.level === "Intern" && k === "Prev. employer") return false;
+    // PAN and Aadhaar are Indian identifiers
+    if ((k === "PAN" || k === "Aadhaar") && countryOf(p.location) !== "IN") return false;
+    return true;
+  });
 export const missingFields = (p: Person) => visibleFields(p).filter((k) => p.fields[k] === "missing");
 
 export type { Owner, Perm };

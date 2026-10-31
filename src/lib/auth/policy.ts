@@ -3,11 +3,13 @@ import type { Persona } from "../workflow";
 import type { DemoUser, Role } from "./users";
 
 /** Top-level areas of the dashboard. One policy table decides who can open each. */
-export type Area = "me" | "tracker" | "builder" | "library" | "ingest" | "reminders" | "agents";
+export type Area = "me" | "tracker" | "employees" | "builder" | "library" | "ingest" | "reminders" | "agents";
 
 export const AREA_ACCESS: Record<Area, Role[]> = {
   me: ["employee"],
   tracker: ["hr", "dept_head", "manager"],
+  /** an individual employee's record (checklist, documents, activity) */
+  employees: ["hr", "dept_head", "manager"],
   builder: ["hr", "dept_head", "manager"],
   library: ["hr", "dept_head", "manager"],
   ingest: ["hr"],
@@ -18,6 +20,7 @@ export const AREA_ACCESS: Record<Area, Role[]> = {
 export const AREA_LABEL: Record<Area, string> = {
   me: "My onboarding",
   tracker: "Tracker",
+  employees: "Employee",
   builder: "Builder",
   library: "Library",
   ingest: "Ingest",
@@ -27,6 +30,8 @@ export const AREA_LABEL: Record<Area, string> = {
 
 /** Order the tabs appear in. */
 export const AREAS: Area[] = ["me", "tracker", "builder", "library", "ingest", "reminders", "agents"];
+/** Areas that appear as tabs in the header (the rest are reached from inside the app). */
+export const TAB_AREAS: Area[] = AREAS;
 
 export const canOpen = (role: Role, area: Area) => AREA_ACCESS[area].includes(role);
 export const visibleAreas = (role: Role) => AREAS.filter((a) => canOpen(role, a));
@@ -43,6 +48,8 @@ export const canEditWorkflow = (u: DemoUser, persona: Persona) =>
 /** Publishing makes a workflow live for new joiners — HR only. Heads submit for HR review. */
 export const canPublish = (u: DemoUser) => u.role === "hr";
 export const canBulkUpload = (u: DemoUser) => u.role === "hr";
+/** Changing a joining date, role or location rewrites the person's checklist: HR, or the head of their department. */
+export const canEditEmployee = (u: DemoUser, p: Person) => u.role === "hr" || (u.role === "dept_head" && u.dept === p.persona.dept);
 export const canNudge = (u: DemoUser) => u.role !== "employee";
 /** Re-running a failed service touches real systems — HR and the owning department head only. */
 export const canRetryService = (u: DemoUser, p: Person) =>

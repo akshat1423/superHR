@@ -1,0 +1,25 @@
+type,fn,department,location,name,email
+owner,HR,*,IN,Priya Nair,priya.nair@acme.com
+owner,HR,*,US,Jordan Blake,jordan.blake@acme.com
+owner,IT,*,IN,Karan Shah,karan.shah@acme.com
+owner,IT,*,US,Taylor Nguyen,taylor.nguyen@acme.com
+owner,Compliance,*,IN,Anita Desai,anita.desai@acme.com
+owner,Compliance,*,US,Chris Walker,chris.walker@acme.com
+owner,Facilities,*,Bengaluru,Meena Pillai,meena.pillai@acme.com
+owner,Facilities,*,Hyderabad,Suresh Reddy,suresh.reddy@acme.com
+owner,Facilities,*,Pune,Nisha Kulkarni,nisha.kulkarni@acme.com
+owner,Facilities,*,Mumbai,Farhan Ali,farhan.ali@acme.com
+owner,Facilities,*,IN,Anil Das,anil.das@acme.com
+owner,Facilities,*,US,Sam Rivera,sam.rivera@acme.com
+owner,Dept Head,Engineering,*,Vikram Singh,vikram.singh@acme.com
+owner,Dept Head,Finance,*,Neha Kapoor,neha.kapoor@acme.com
+owner,Dept Head,Product,*,Isha Menon,isha.menon@acme.com
+owner,Dept Head,Business,*,Rahul Jain,rahul.jain@acme.com
+owner,Dept Head,People,*,Priya Nair,priya.nair@acme.com
+manager,,Engineering,,Arjun Rao,arjun.rao@acme.com
+manager,,Engineering,,Dev Patel,dev.patel@acme.com
+manager,,Engineering,,Vikram Singh,vikram.singh@acme.com
+manager,,Finance,,Neha Kapoor,neha.kapoor@acme.com
+manager,,Product,,Isha Menon,isha.menon@acme.com
+manager,,Business,,Rahul Jain,rahul.jain@acme.com
+manager,,People,,Priya Nair,priya.nair@acme.com

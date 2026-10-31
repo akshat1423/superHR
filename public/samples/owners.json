@@ -1,0 +1,167 @@
+{
+  "departments": [
+    "Engineering",
+    "Finance",
+    "Product",
+    "Business",
+    "People"
+  ],
+  "owners": [
+    {
+      "fn": "HR",
+      "department": "*",
+      "location": "IN",
+      "name": "Priya Nair",
+      "email": "priya.nair@acme.com"
+    },
+    {
+      "fn": "HR",
+      "department": "*",
+      "location": "US",
+      "name": "Jordan Blake",
+      "email": "jordan.blake@acme.com"
+    },
+    {
+      "fn": "IT",
+      "department": "*",
+      "location": "IN",
+      "name": "Karan Shah",
+      "email": "karan.shah@acme.com"
+    },
+    {
+      "fn": "IT",
+      "department": "*",
+      "location": "US",
+      "name": "Taylor Nguyen",
+      "email": "taylor.nguyen@acme.com"
+    },
+    {
+      "fn": "Compliance",
+      "department": "*",
+      "location": "IN",
+      "name": "Anita Desai",
+      "email": "anita.desai@acme.com"
+    },
+    {
+      "fn": "Compliance",
+      "department": "*",
+      "location": "US",
+      "name": "Chris Walker",
+      "email": "chris.walker@acme.com"
+    },
+    {
+      "fn": "Facilities",
+      "department": "*",
+      "location": "Bengaluru",
+      "name": "Meena Pillai",
+      "email": "meena.pillai@acme.com"
+    },
+    {
+      "fn": "Facilities",
+      "department": "*",
+      "location": "Hyderabad",
+      "name": "Suresh Reddy",
+      "email": "suresh.reddy@acme.com"
+    },
+    {
+      "fn": "Facilities",
+      "department": "*",
+      "location": "Pune",
+      "name": "Nisha Kulkarni",
+      "email": "nisha.kulkarni@acme.com"
+    },
+    {
+      "fn": "Facilities",
+      "department": "*",
+      "location": "Mumbai",
+      "name": "Farhan Ali",
+      "email": "farhan.ali@acme.com"
+    },
+    {
+      "fn": "Facilities",
+      "department": "*",
+      "location": "IN",
+      "name": "Anil Das",
+      "email": "anil.das@acme.com"
+    },
+    {
+      "fn": "Facilities",
+      "department": "*",
+      "location": "US",
+      "name": "Sam Rivera",
+      "email": "sam.rivera@acme.com"
+    },
+    {
+      "fn": "Dept Head",
+      "department": "Engineering",
+      "location": "*",
+      "name": "Vikram Singh",
+      "email": "vikram.singh@acme.com"
+    },
+    {
+      "fn": "Dept Head",
+      "department": "Finance",
+      "location": "*",
+      "name": "Neha Kapoor",
+      "email": "neha.kapoor@acme.com"
+    },
+    {
+      "fn": "Dept Head",
+      "department": "Product",
+      "location": "*",
+      "name": "Isha Menon",
+      "email": "isha.menon@acme.com"
+    },
+    {
+      "fn": "Dept Head",
+      "department": "Business",
+      "location": "*",
+      "name": "Rahul Jain",
+      "email": "rahul.jain@acme.com"
+    },
+    {
+      "fn": "Dept Head",
+      "department": "People",
+      "location": "*",
+      "name": "Priya Nair",
+      "email": "priya.nair@acme.com"
+    }
+  ],
+  "managers": [
+    {
+      "name": "Arjun Rao",
+      "email": "arjun.rao@acme.com",
+      "department": "Engineering"
+    },
+    {
+      "name": "Dev Patel",
+      "email": "dev.patel@acme.com",
+      "department": "Engineering"
+    },
+    {
+      "name": "Vikram Singh",
+      "email": "vikram.singh@acme.com",
+      "department": "Engineering"
+    },
+    {
+      "name": "Neha Kapoor",
+      "email": "neha.kapoor@acme.com",
+      "department": "Finance"
+    },
+    {
+      "name": "Isha Menon",
+      "email": "isha.menon@acme.com",
+      "department": "Product"
+    },
+    {
+      "name": "Rahul Jain",
+      "email": "rahul.jain@acme.com",
+      "department": "Business"
+    },
+    {
+      "name": "Priya Nair",
+      "email": "priya.nair@acme.com",
+      "department": "People"
+    }
+  ]
+}

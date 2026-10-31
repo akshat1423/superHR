@@ -1,0 +1,8 @@
+full_name,email,phone,role,department,emp_type,level,grade,location,start_date,manager,dob
+Anjali Verma,anjali.verma@gmail.com,+91 98100 22001,Backend Engineer,Engineering,Full-time,SDE-2,L4,Bengaluru,2026-11-10,Arjun Rao,1996-05-14
+Bad Date,bad.date@gmail.com,+91 98100 22002,Data Analyst,Finance,Full-time,Associate,L3,Mumbai,31/02/2026,Neha Kapoor,1999-01-20
+Wrong Dept,wrong.dept@gmail.com,+91 98100 22003,Growth Marketer,Marketing,Full-time,Mid,L4,Pune,2026-11-12,Rahul Jain,1997-07-07
+Ghost Manager,ghost.manager@gmail.com,+91 98100 22004,Designer,Product,Full-time,Mid,L4,Hyderabad,2026-11-12,Arjun Roa,1995-02-02
+No Grade,no.grade@gmail.com,+91 98100 22005,Support Engineer,Engineering,Full-time,Mid,,Chennai,2026-11-14,Arjun Rao,1998-03-03
+Dup Email,anjali.verma@gmail.com,+91 98100 22006,QA Engineer,Engineering,Full-time,SDE-1,L3,Pune,2026-11-14,Dev Patel,1999-09-09
+Odd Office,odd.office@gmail.com,+91 98100 22007,SRE,Engineering,Full-time,SDE-3,L5,Gotham,2026-11-16,Arjun Rao,1991-11-11

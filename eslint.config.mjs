@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // dev tooling and test scripts (run with tsx), not part of the app
+    "scripts/**",
   ]),
 ]);
 

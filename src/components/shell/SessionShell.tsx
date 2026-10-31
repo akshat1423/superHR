@@ -2,6 +2,7 @@ import { getUser } from "@/lib/auth/session";
 import { AuthProvider } from "./AuthProvider";
 import { Header } from "./Header";
 import { ProvisionDriver } from "./ProvisionDriver";
+import { Hydrate } from "./Hydrate";
 
 /**
  * Reads the session on the server (dynamic) and hands the verified user to the client tree.
@@ -14,6 +15,7 @@ export async function SessionShell({ children }: { children: React.ReactNode }) 
       <Header />
       <main className="relative min-h-0 flex-1">{children}</main>
       <ProvisionDriver />
+      <Hydrate />
     </AuthProvider>
   );
 }

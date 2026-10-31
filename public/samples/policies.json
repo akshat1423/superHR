@@ -1,0 +1,275 @@
+[
+  {
+    "id": "POL-01",
+    "title": "Pre-Joining Document Policy — India",
+    "version": "v3.2",
+    "appliesTo": {
+      "countries": [
+        "IN"
+      ]
+    },
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Required documents",
+        "text": "Every new joiner in India must submit: (a) a government photo ID — Aadhaar, passport or driving licence; (b) proof of current address dated within the last 3 months — a utility bill, bank statement or rental agreement; (c) a PAN card. Joiners with a degree-level or higher qualification must also submit the education certificate for their highest qualification. Experienced hires (Mid grade and above) must submit the relieving or experience letter from their last employer. Interns do not need education certificates or previous-employment letters; they sign an internship agreement instead."
+      },
+      {
+        "id": "§2",
+        "heading": "Submission deadline",
+        "text": "Upload identity, address and PAN documents at least 7 days before your joining date. The previous-employer letter is due 5 days before joining. A document that is still missing on the joining date delays your HR record, laptop and system access."
+      },
+      {
+        "id": "§3",
+        "heading": "File format and validity",
+        "text": "Upload PDF, JPG or PNG files of at most 5 MB each. The name on every document must match your offer letter. A passport or driving licence must still be valid on your joining date. Address proof older than 3 months is not accepted. Illegible or cropped scans are rejected."
+      },
+      {
+        "id": "§4",
+        "heading": "Corrections",
+        "text": "HR reviews each document within 2 working days. If a document is rejected you will see the reason and can upload a corrected copy; the status changes to Correction Requested until you do."
+      }
+    ]
+  },
+  {
+    "id": "POL-02",
+    "title": "Pre-Joining Document Policy — United States",
+    "version": "v2.4",
+    "appliesTo": {
+      "countries": [
+        "US"
+      ]
+    },
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Required documents",
+        "text": "Every new joiner in the United States must provide documents establishing identity and work authorisation for Form I-9: either one List A document (for example a U.S. passport or permanent resident card) or one List B document (such as a driver's licence) together with one List C document (such as a Social Security card). You must also provide proof of current address, and an education certificate for roles that specify a degree. PAN and Aadhaar do not apply to U.S. joiners."
+      },
+      {
+        "id": "§2",
+        "heading": "Deadlines",
+        "text": "Upload your identity and address documents at least 7 days before your start date. Section 1 of Form I-9 must be completed no later than your first day, and HR must inspect your original documents within 3 business days of your start date. Work authorisation is also confirmed through E-Verify within 3 business days."
+      },
+      {
+        "id": "§3",
+        "heading": "File format",
+        "text": "Upload PDF, JPG or PNG files of at most 5 MB each. Names must match your offer letter. Expired documents are not acceptable for Form I-9."
+      },
+      {
+        "id": "§4",
+        "heading": "Tax forms",
+        "text": "Form W-4 is completed on your first day in the HR portal. Direct-deposit details can be added at any time before the first payroll cut-off."
+      }
+    ]
+  },
+  {
+    "id": "POL-03",
+    "title": "Payroll and Statutory Onboarding — India",
+    "version": "v1.8",
+    "appliesTo": {
+      "countries": [
+        "IN"
+      ]
+    },
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "PAN and bank details",
+        "text": "A valid PAN is mandatory for payroll; without it tax is deducted at the higher rate of 20%. Provide bank account details so that salary can be credited on the last working day of each month."
+      },
+      {
+        "id": "§2",
+        "heading": "Provident fund and UAN",
+        "text": "Employees are registered for provident fund after the HR record is created. If you already have a UAN from a previous employer, share it with HR; otherwise a new one is generated. Interns receive a stipend and are not enrolled in provident fund."
+      },
+      {
+        "id": "§3",
+        "heading": "HR record",
+        "text": "Payroll can only be set up after the HR employee record exists. The record is created once your identity, address and qualification documents have been accepted."
+      }
+    ]
+  },
+  {
+    "id": "POL-04",
+    "title": "Background Verification Policy",
+    "version": "v2.1",
+    "appliesTo": {},
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "When it starts",
+        "text": "Background verification (BGV) is initiated after your identity and address documents are accepted. It covers identity, address, highest education, the last two employers, and a criminal-record check (police verification in India; county criminal search in the United States)."
+      },
+      {
+        "id": "§2",
+        "heading": "Timeline",
+        "text": "Verification typically takes 5 to 7 business days. Delays are most often caused by a previous employer not responding or by an unclear document."
+      },
+      {
+        "id": "§3",
+        "heading": "System access",
+        "text": "Access to company systems is granted only after BGV is cleared. If BGV is still pending on your joining date, IT access is delayed until it completes. Adverse findings are escalated to Compliance and may affect the offer."
+      }
+    ]
+  },
+  {
+    "id": "POL-05",
+    "title": "IT Provisioning Policy",
+    "version": "v2.6",
+    "appliesTo": {},
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "When requests are raised",
+        "text": "The laptop and email requests are raised automatically after your HR employee record is created. Your email account is ready 2 days before you join."
+      },
+      {
+        "id": "§2",
+        "heading": "Laptops",
+        "text": "Standard laptops are delivered within 5 business days of the request and are collected from the IT desk at your office on day 1; remote employees receive theirs by courier. Employees at Leader grade receive an executive laptop, which needs approval from their department head before it can be ordered. Personal devices (BYOD) are not permitted."
+      },
+      {
+        "id": "§3",
+        "heading": "Support",
+        "text": "Raise issues with the IT service desk at it-helpdesk@acme.com. Missing hardware on your first day is treated as a priority request."
+      }
+    ]
+  },
+  {
+    "id": "POL-06",
+    "title": "Information Security Policy",
+    "version": "v4.0",
+    "appliesTo": {},
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Acknowledgement",
+        "text": "Every employee must acknowledge this policy before they are given access to production systems. Multi-factor authentication is mandatory on all accounts and a company password manager must be used."
+      },
+      {
+        "id": "§2",
+        "heading": "Engineering access",
+        "text": "Engineering roles receive access to source control, issue tracking and cloud environments by role. Production access is granted only after background verification is cleared, an email account exists and the information security acknowledgement is recorded. Engineers complete secure-coding training within their first 7 days."
+      },
+      {
+        "id": "§3",
+        "heading": "Incidents and data handling",
+        "text": "Report any suspected incident to security@acme.com within 1 hour. Do not store company data in personal cloud storage or on personal devices."
+      }
+    ]
+  },
+  {
+    "id": "POL-07",
+    "title": "Code of Conduct",
+    "version": "v5.1",
+    "appliesTo": {},
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Acknowledgement",
+        "text": "All new joiners read and acknowledge the Code of Conduct on or before their first day. It covers integrity, confidentiality, conflicts of interest, and fair treatment of colleagues, customers and partners."
+      },
+      {
+        "id": "§2",
+        "heading": "Gifts and conflicts",
+        "text": "Gifts from suppliers or customers above a nominal value must be declared to your manager. Declare any outside business interest to HR before you join."
+      },
+      {
+        "id": "§3",
+        "heading": "Speak-up channel",
+        "text": "Concerns can be raised confidentially through the speak-up line at speakup@acme.com. Retaliation against anyone raising a concern in good faith is a disciplinary offence."
+      }
+    ]
+  },
+  {
+    "id": "POL-08",
+    "title": "Prevention of Sexual Harassment (POSH) Policy — India",
+    "version": "v2.0",
+    "appliesTo": {
+      "countries": [
+        "IN"
+      ]
+    },
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Awareness and acknowledgement",
+        "text": "In line with the POSH Act 2013, every employee in India completes the POSH awareness module and records an acknowledgement within the first 3 days of joining."
+      },
+      {
+        "id": "§2",
+        "heading": "Internal Committee",
+        "text": "Complaints are heard by the Internal Committee. Contact details are on the intranet and in the first-day guide; all complaints are handled confidentially."
+      }
+    ]
+  },
+  {
+    "id": "POL-09",
+    "title": "Anti-Harassment and Equal Opportunity Policy — United States",
+    "version": "v1.5",
+    "appliesTo": {
+      "countries": [
+        "US"
+      ]
+    },
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Acknowledgement and training",
+        "text": "U.S. employees acknowledge this policy during onboarding and complete anti-harassment training within 30 days of starting."
+      },
+      {
+        "id": "§2",
+        "heading": "Reporting",
+        "text": "Report concerns to your manager, HR or the speak-up line. The company prohibits retaliation against anyone who reports in good faith."
+      }
+    ]
+  },
+  {
+    "id": "POL-10",
+    "title": "First-Day and Workplace Guide",
+    "version": "v3.3",
+    "appliesTo": {},
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Arrival",
+        "text": "Arrive at your office reception at 9:30 AM on your joining date and bring the original of your photo ID. Orientation with HR starts at 10:30 AM and lunch is with your buddy. Your manager sends your day-1 agenda the day before."
+      },
+      {
+        "id": "§2",
+        "heading": "ID card and desk",
+        "text": "Your ID card and building access are arranged by Facilities once your HR record exists. Your desk is allocated the day before you join and is shown on your day-1 agenda."
+      },
+      {
+        "id": "§3",
+        "heading": "Office locations",
+        "text": "Bengaluru: Embassy Tech Village, Outer Ring Road. Hyderabad: Hitec City. Pune: Hinjewadi Phase 2. Mumbai: Bandra Kurla Complex. Chennai: Taramani. Kolkata: Salt Lake Sector V. Austin: 500 W 2nd Street. Parking is available at the Bengaluru and Austin offices."
+      },
+      {
+        "id": "§4",
+        "heading": "Working pattern",
+        "text": "Core hours are 10:00 AM to 4:00 PM and the hybrid pattern is 3 days in the office. Interns are assigned a mentor before they start; part-time employees agree their weekly schedule with their manager before joining. The dress code is casual."
+      }
+    ]
+  },
+  {
+    "id": "POL-11",
+    "title": "Probation, Leave and Working Hours",
+    "version": "v2.2",
+    "appliesTo": {},
+    "sections": [
+      {
+        "id": "§1",
+        "heading": "Probation",
+        "text": "Full-time employees serve a 6-month probation, confirmed by HR after a 90-day review with your manager. Interns have no probation; their conversion is reviewed at 60 days."
+      },
+      {
+        "id": "§2",
+        "heading": "Leave",
+        "text": "Employees in India receive 18 days of paid leave plus public holidays; employees in the United States receive 15 days of paid time off. Leave accrues monthly from your joining date and cannot be taken in the first 30 days except for emergencies."
+      }
+    ]
+  }
+]

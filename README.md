@@ -44,6 +44,38 @@ New batches started from **Ingest** stream to Supabase automatically while they 
 Reminders page runs in **preview mode**: emails are rendered and logged but never delivered, and the page says so.
 `EMAIL_TEST_RECIPIENT` funnels every message to one inbox while testing.
 
+## HR onboarding agent (Level 1)
+
+- **Ingest** (`/ingest`, HR) — CSV / Excel / JSON, validated for mandatory fields, date formats and manager/department references; row-level report; four datasets (profiles, requirements, policies, owners) with sample / upload / reset. Sample files are in `public/samples`.
+- **Checklists** — requirements are data (`src/lib/onboarding/rules.ts`); every item says which rule produced it. States: completed / pending / blocked / overdue.
+- **Documents** — Not Submitted → Submitted → Under Review → Accepted / Correction Requested. Extracted name, dates and document type are compared with the profile by our own code.
+- **Assistant** — answers only from approved policies and the person's own checklist, cites the policy, and says "not covered" (naming HR) otherwise. With `ANTHROPIC_API_KEY` the reply is written by Claude and then verified against the sources; without it the answer is quoted extractively.
+- **Dashboard** (`/tracker`) — filters by joining date, department, location and status; open a row for the full checklist.
+- **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
+
+```bash
+npm test                                             # 257 domain checks, no server needed
+BASE_URL=http://localhost:3000 npm run test:e2e      # 39 checks as each persona against a running app
+```
+
+## Deploy to Vercel
+
+1. Push this repo to GitHub and **Import** it in Vercel (framework: Next.js; no build settings to change). Node ≥ 20.9.
+2. Add the environment variables below (Project → Settings → Environment Variables), then deploy.
+3. Open `/api/health` while signed in as HR to confirm each integration is picked up (booleans only).
+4. Run `BASE_URL=https://<your-app>.vercel.app npm run test:e2e` to check the deployment end to end.
+
+| Variable | Needed | Notes |
+|---|---|---|
+| `SESSION_SECRET` | **yes** | Long random string (`openssl rand -hex 32`). Sessions can't be signed without it in production. |
+| `ANTHROPIC_API_KEY` | for AI answers & PDF/image reading | Without it the assistant quotes policies and PDFs go to a human reviewer. |
+| `ANTHROPIC_MODEL` | no | Defaults to `claude-opus-5-5`. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_APP_KEY` | for agent logs | Run the SQL from `npm run db:sql` once. `NEXT_PUBLIC_*` are baked in at **build** time — redeploy after changing them. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | for real email | Otherwise Reminders runs in preview mode. |
+
+Vercel deploys the **Production Branch** (default `main`) to your production URL; other branches get preview URLs.
+The AI routes set `maxDuration = 60`, which fits every plan.
+
 ## Layout
 
 - `src/lib/workflow.ts` — template engine: persona (type × department × level) → workflow. `catalog.ts` — 123 blocks (78 with real brand logos).
@@ -54,7 +86,8 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 
 ## Known limits
 
-- **People, workflows and the outbox still live in browser memory.** Only agent events are persisted so far.
+- **People, checklists, documents, the audit log and the outbox live in each browser's localStorage.** Only agent events are in Supabase. On Vercel that means no shared state across devices or users yet; the next step is per-entity Supabase tables behind role-checked API routes.
+- **The rate limiter is in-memory**, so it is per serverless instance.
 - **The provisioning agents are simulated** in the browser (API calls, timings, failures are generated, not sent to real systems).
 - **The login is a demo identity provider.** Swap `src/lib/auth/users.ts` and the login route for Okta / Google SSO.
 - **Data scoping in the UI is client-side** while the data is in browser memory; route access, the email API and the agent-events API are enforced on the server. A database behind server-side scoping closes this.
