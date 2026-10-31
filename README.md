@@ -81,21 +81,47 @@ Reminders, approvals and questions on WhatsApp, modelled on chatflow's WhatsApp 
 3. In Meta → WhatsApp → Configuration: callback URL `https://<your-app>/api/whatsapp/webhook`, your verify token, subscribe to **messages**. The webhook refuses everything without `WHATSAPP_APP_SECRET` and rejects any call whose `x-hub-signature-256` doesn't match.
 4. **Templates (WhatsApp's 24-hour rule)**: free-form messages are allowed only within 24 hours of the person's last message. Beyond that, create and get approved in Meta, then set `WHATSAPP_TEMPLATE_NOTIFY` (utility, body like `Onboarding update: {{1}} Reply STOP to stop messages.`) and `WHATSAPP_TEMPLATE_APPROVAL` (the same body plus two quick-reply buttons, *Approve* and *Reject*). Without them, an out-of-window message is not sent and the Activity tab says why.
 
-**Sharing the number with superconnect.** Meta sends every message for a number to one webhook, so two apps on one number need one to hand messages to the other. Both must be the same Meta app (same app secret). Set `WHATSAPP_ROUTER_KEY` here; in chatflow's `whatsapp-verify/post-handler.ts`, after its signature check and before the account lookup, forward what belongs to superHR, unchanged:
+**Sharing the number with superconnect.** Meta sends every message for a number to one webhook, so two apps on one number need one to hand messages to the other. Both must be the same Meta app (same app secret). Set `WHATSAPP_ROUTER_KEY` here; in chatflow's `whatsapp-verify/post-handler.ts`, after its signature check and before the account lookup, forward what belongs to superHR, unchanged (Meta's callback URL stays where it is):
 ```ts
-const route = Deno.env.get('SUPERHR_ROUTE_URL'), hook = Deno.env.get('SUPERHR_WEBHOOK_URL'), key = Deno.env.get('SUPERHR_ROUTER_KEY');
-if (route && hook && key) try {
-  const m = JSON.parse(rawBody)?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (m?.from) {
-    const r = await fetch(route, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` }, body: JSON.stringify({ phone: m.from, text: m.text?.body ?? '' }), signal: AbortSignal.timeout(3000) });
-    if (r.ok && (await r.json()).handle) {
-      await fetch(hook, { method: 'POST', headers: { 'content-type': 'application/json', 'x-hub-signature-256': req.headers.get('x-hub-signature-256') ?? '' }, body: rawBody });
-      return new Response('ok', { status: 200, headers: corsHeaders });
+  // Hand messages that belong to superHR (onboarding assistant) to its webhook, unchanged.
+  // Inert unless all three secrets are set: SUPERHR_ROUTE_URL, SUPERHR_WEBHOOK_URL, SUPERHR_ROUTER_KEY.
+  // superHR decides who is "its" (a number that joined it, or a message "JOIN <its code>"). Meta's body and
+  // x-hub-signature-256 are forwarded byte for byte, so superHR verifies them itself with the same app secret.
+  // If superHR is slow or down we log and drop the message rather than let it affect this webhook.
+  const superHrRoute = Deno.env.get('SUPERHR_ROUTE_URL');
+  const superHrHook = Deno.env.get('SUPERHR_WEBHOOK_URL');
+  const superHrKey = Deno.env.get('SUPERHR_ROUTER_KEY');
+  if (superHrRoute && superHrHook && superHrKey) {
+    try {
+      const first = JSON.parse(rawBody)?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+      if (first?.from) {
+        const ask = await fetch(superHrRoute, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${superHrKey}` },
+          body: JSON.stringify({ phone: first.from, text: first.text?.body ?? '' }),
+          signal: AbortSignal.timeout(3000)
+        });
+        if (ask.ok && (await ask.json())?.handle === true) {
+          try {
+            const fwd = await fetch(superHrHook, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'x-hub-signature-256': req.headers.get('x-hub-signature-256') || '' },
+              body: rawBody,
+              signal: AbortSignal.timeout(8000)
+            });
+            if (!fwd.ok) console.error('superHR webhook answered', fwd.status);
+          } catch (e) {
+            console.error('Could not forward to superHR; message dropped:', e);
+          }
+          return new Response('ok', { status: 200, headers: corsHeaders });
+        }
+      }
+    } catch (e) {
+      console.error('superHR routing check failed; handling normally:', e);
     }
   }
-} catch (e) { console.error('superHR routing failed, continuing normally', e); }
 ```
-(`SUPERHR_ROUTE_URL` = `https://<your-app>/api/whatsapp/route`, `SUPERHR_WEBHOOK_URL` = `…/api/whatsapp/webhook`.) While someone is joined to superHR all their messages go to superHR; `EXIT` hands the number back, like chatflow's sandbox exit code. This snippet has **not** been applied to or tested against chatflow.
+(`SUPERHR_ROUTE_URL` = `https://<your-app>/api/whatsapp/route`, `SUPERHR_WEBHOOK_URL` = `…/api/whatsapp/webhook`.) While someone is joined to superHR all their messages go to superHR; `EXIT` hands the number back, like chatflow's sandbox exit code. The block is applied to chatflow's working copy (uncommitted, not deployed) and was tested against a local mock of superHR (forwarding, not forwarding, superHR down, secrets unset); it is inert unless the three secrets are set. If superHR is slow or down the message is dropped and logged and superconnect is unaffected.
 
 **Limits.** The server holds only who joined, pending approvals and a snapshot per joiner (pushed by a signed-in browser when their checklist changes); the checklist itself stays in the browser, so approvals are applied, and answers refreshed, only while a signed-in browser is open. Not covered: joiners sending documents over WhatsApp, WhatsApp Q&A for managers or HR, delivery receipts, and the live Meta calls (tested only against a local mock of the Graph API).
 
