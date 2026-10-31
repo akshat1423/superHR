@@ -30,18 +30,19 @@ ok "Engineering head sees Engineering, not Finance" "$(eq "$(has "$dh" 'Yash Ban
 ok "Finance head sees Finance, not Engineering" "$(eq "$(has "$fh" 'Meera Iyer')$(has "$fh" 'Yash Bansal')" 10)"
 
 echo "employee record access (p0 = Yash, Engineering; p4 = Meera, Finance)"
-ok "HR opens Yash's record: checklist with items" "$(has "$(page priya /employees/p0)" 'Government photo ID')"
+ok "HR opens Yash's record: overview with what needs attention" "$(has "$(page priya /employees/p0)" 'Needs attention')"
 ok "…with the tabs staff need" "$(has "$(page priya /employees/p0)" 'Profile &amp; changes')"
-ok "Arjun (Yash's manager) can open Yash" "$(has "$(page arjun /employees/p0)" 'Government photo ID')"
+ok "…and the ID badge on the overview" "$(has "$(page priya /employees/p0)" 'SUPERJOIN')"
+ok "Arjun (Yash's manager) can open Yash" "$(has "$(page arjun /employees/p0)" 'Needs attention')"
 ok "Arjun cannot open Meera (not his report)" "$(has "$(page arjun /employees/p4)" 'Not in your scope')"
 ok "Engineering head cannot open Finance's Meera" "$(has "$(page vikram /employees/p4)" 'Not in your scope')"
-ok "Finance head can open Meera" "$(has "$(page neha /employees/p4)" 'Government photo ID')"
+ok "Finance head can open Meera" "$(has "$(page neha /employees/p4)" 'Needs attention')"
 ok "the new joiner cannot open the staff record page" "$(has "$(page yash /employees/p0)" 'No access to')"
 
 echo "the new joiner's own page"
 me=$(page yash /me)
 ok "welcome banner and own checklist tab" "$(eq "$(has "$me" "Welcome")$(has "$me" "My checklist")" 11)"
-ok "sees his own checklist" "$(has "$me" 'Government photo ID')"
+ok "sees his own overview" "$(has "$me" 'Needs attention')"
 for n in "Riya Sharma" "Aarav Mehta" "Meera Iyer" "Emily Carter"; do ok "no other person ($n)" "$(hasnt "$me" "$n")"; done
 ok "has no staff-only tabs (Profile & changes, Activity)" "$(hasnt "$me" 'Profile &amp; changes')"
 

@@ -13,9 +13,10 @@ import { AuditLog } from "./AuditLog";
 import { ChecklistView } from "./ChecklistView";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { EscalationsPanel } from "./EscalationsPanel";
+import { Overview } from "./Overview";
 import { ProfileEditor } from "./ProfileEditor";
 
-type Tab = "checklist" | "documents" | "profile" | "escalations" | "activity" | "assistant";
+type Tab = "overview" | "checklist" | "documents" | "profile" | "escalations" | "activity" | "assistant";
 
 /**
  * One employee's whole onboarding: checklist (with the reason for every item), documents, profile changes,
@@ -24,7 +25,7 @@ type Tab = "checklist" | "documents" | "profile" | "escalations" | "activity" | 
 export function EmployeeRecord({ personId, mode }: { personId: string; mode: "staff" | "self" }) {
   const user = useUser();
   const view = useEmployeeView(personId);
-  const [tab, setTab] = useState<Tab>("checklist");
+  const [tab, setTab] = useState<Tab>("overview");
   const [focus, setFocus] = useState<string | null>(null);
 
   if (!view) return <div className="grid h-full place-items-center px-8"><div className="paper-card max-w-[480px] rounded-[22px] bg-paper2 p-8 text-center"><b className="text-[20px]">Employee not found</b><p className="mt-2 text-[13px] text-mute">They may have been removed in a newer upload.</p><Link href="/tracker" className="mt-4 inline-block rounded-xl border border-line px-4 py-2 font-mono text-[11px] uppercase">Back to the dashboard</Link></div></div>;
@@ -34,8 +35,8 @@ export function EmployeeRecord({ personId, mode }: { personId: string; mode: "st
   const d = daysBetween(todayISO(), person.startDate);
   const when = d > 0 ? `joins in ${d} day${d === 1 ? "" : "s"}` : d === 0 ? "joins today" : `joined ${-d} day${d === -1 ? "" : "s"} ago`;
   const tabs: { value: Tab; label: string }[] = mode === "self"
-    ? [{ value: "checklist", label: "My checklist" }, { value: "documents", label: "My documents" }, { value: "assistant", label: "Ask a question" }]
-    : [{ value: "checklist", label: "Checklist" }, { value: "documents", label: "Documents" }, { value: "profile", label: "Profile & changes" }, { value: "escalations", label: `Escalations${view.escalations.length ? ` · ${view.escalations.length}` : ""}` }, { value: "activity", label: "Activity" }, { value: "assistant", label: "Assistant" }];
+    ? [{ value: "overview", label: "Overview" }, { value: "checklist", label: "My checklist" }, { value: "documents", label: "My documents" }, { value: "assistant", label: "Ask a question" }]
+    : [{ value: "overview", label: "Overview" }, { value: "checklist", label: "Checklist" }, { value: "documents", label: "Documents" }, { value: "profile", label: "Profile & changes" }, { value: "escalations", label: `Escalations${view.escalations.length ? ` · ${view.escalations.length}` : ""}` }, { value: "activity", label: "Activity" }, { value: "assistant", label: "Assistant" }];
 
   return (
     <div className="h-full overflow-auto">
@@ -59,6 +60,7 @@ export function EmployeeRecord({ personId, mode }: { personId: string; mode: "st
 
         <div className="my-5"><Seg<Tab> value={tab} onChange={setTab} options={tabs} /></div>
 
+        {tab === "overview" && <Overview view={view} mode={mode} onOpen={() => setTab("checklist")} />}
         {tab === "checklist" && <ChecklistView view={view} mode={mode} onUpload={(id) => { setFocus(id); setTab("documents"); }} />}
         {tab === "documents" && <DocumentsPanel view={view} mode={mode} focusItemId={focus} />}
         {tab === "profile" && <ProfileEditor view={view} />}
