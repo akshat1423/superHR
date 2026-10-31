@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: #e8e0cf;
+  --color-paper2: #f4efe3;
+  --color-ink: #17130e;
+  --color-mute: #8a8070;
+  --color-line: #cfc6b2;
+  --color-acc: #c4572f;
+  --color-ok: #2f7d4f;
+  --color-bad: #b3261e;
+  --color-warn: #c58a14;
+  --color-vio: #6d4aff;
+  --color-dark: #0b0d1a;
+  --color-dark2: #151933;
+  --color-dark3: #1e2342;
+  --font-sans: var(--font-inter-tight);
+  --font-mono: var(--font-jetbrains);
+  --font-serif: var(--font-instrument);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+:root { color-scheme: light; }
 
+html, body { height: 100%; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-inter-tight), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+/* subtle scanline paper texture, like superconnect */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.02) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+  z-index: 200;
+}
+button { cursor: pointer; font: inherit; color: inherit; }
+input, select { font: inherit; color: inherit; }
+
+@keyframes sj-pulse { 50% { transform: scale(.55); opacity: .6; } }
+@keyframes sj-glow { 50% { box-shadow: 0 0 0 5px rgba(196,87,47,.2); } }
+
+.mono { font-family: var(--font-jetbrains), ui-monospace, monospace; }
+.eyebrow {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+.page-title { font-size: 34px; font-weight: 800; letter-spacing: -.04em; }
+.page-title i { font-family: var(--font-instrument), serif; font-weight: 400; }
+
+/* superconnect-style paper card: warm sheet with a dotted texture */
+.paper-dots {
+  background-color: var(--color-paper2);
+  background-image: radial-gradient(#d8cfba 1px, transparent 1.2px);
+  background-size: 10px 10px;
+}
+.paper-card {
+  border: 1px solid rgba(255,255,255,.6);
+  box-shadow: 0 1px 0 #fff inset, 0 6px 16px rgba(107,90,58,.13);
 }
