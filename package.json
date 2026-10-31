@@ -20,6 +20,8 @@
   },
   "devDependencies": {
     "@iconify-json/logos": "^1.2.18",
+    "@iconify-json/mdi": "^1.2.3",
+    "@iconify-json/vscode-icons": "^1.2.94",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
@@ -27,6 +29,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "simple-icons": "^16.36.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

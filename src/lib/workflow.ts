@@ -22,7 +22,7 @@ export const fmtDay = (d: number) => (d < 0 ? `T${d}` : d === 0 ? "Day 0" : `T+$
  * work tools are Read for interns, Member by default, Admin for leaders.
  */
 export function defaultPerm(level: Level, cat: CatId): Perm {
-  if (cat === "identity") return "Member";
+  if (cat === "identity" || cat === "ai") return "Member";
   if (level === "Intern") return "Read";
   if (level === "Leader") return "Admin";
   return "Member";

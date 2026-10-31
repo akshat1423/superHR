@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/tracker/Avatar";
 import { Seg } from "@/components/ui/Seg";
+import { ICONS } from "@/components/ui/icons";
 import type { Person } from "@/lib/people";
 import { personaLabel } from "@/lib/workflow";
 import {
@@ -217,6 +218,7 @@ const depText = (i: number) => {
 
 function TaskChip({ t, i, small }: { t: Task; i: number; small?: boolean }) {
   const sv = SERVICES[i];
+  const Icon = ICONS[sv.icon] ?? ICONS.Box;
   const size = small ? 26 : 32;
   const tone =
     t.status === "done" ? "border-[#9fcfae] bg-[#dbeadf]"
@@ -225,8 +227,8 @@ function TaskChip({ t, i, small }: { t: Task; i: number; small?: boolean }) {
     : t.status === "retry" ? "border-acc bg-[#fbefcf]"
     : "border-dashed border-[#c4b99f] bg-transparent opacity-60";
   return (
-    <span title={`${sv.name} — ${t.status}${t.detail ? `: ${t.detail}` : ""}`} className={cn("relative inline-grid flex-none place-items-center overflow-visible rounded-[10px] border font-mono text-[9.5px] font-semibold text-ink", tone, t.status === "running" && "animate-pulse")} style={{ width: size, height: size }}>
-      {sv.mono}
+    <span title={`${sv.name} — ${t.status}${t.detail ? `: ${t.detail}` : ""}`} className={cn("relative inline-grid flex-none place-items-center overflow-visible rounded-[10px] border text-ink", tone, t.status === "running" && "animate-pulse")} style={{ width: size, height: size }}>
+      <Icon size={Math.round(size * 0.5)} strokeWidth={1.8} />
       {t.status === "done" && <Badge cls="bg-ok">✓</Badge>}
       {t.status === "waiting" && <Badge cls="bg-warn">!</Badge>}
       {t.status === "retry" && <Badge cls="bg-acc">↻</Badge>}

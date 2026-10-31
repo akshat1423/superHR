@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { BLOCKS_BY_CAT, CATEGORIES, PACKS, type BlockDef } from "@/lib/catalog";
-import { Glyph, Mono, type Tone } from "@/components/ui/Glyph";
+import { Glyph, IconTile, type Tone } from "@/components/ui/Glyph";
 import { useBuilder } from "@/store/builder";
 import { toast } from "@/store/toast";
 
@@ -56,9 +56,9 @@ export function Palette() {
             <div className="grid grid-cols-2 gap-2 px-0.5 pb-2.5 pt-0.5">
               {c.packs.map((p) => (
                 <div key={p.name} className="sj-tile" draggable onDragStart={(e) => drag(e, { kind: "pack", id: p.name })} onClick={() => addAtCenter({ kind: "pack", id: p.name })}>
-                  <Mono text={`+${p.keys.length}`} size={38} tone="ink" />
+                  <IconTile icon="Layers" size={38} tone="ink" />
                   {p.name}
-                  <small>pack</small>
+                  <small>{p.keys.length} blocks</small>
                 </div>
               ))}
               {c.blocks.map((b) => (
