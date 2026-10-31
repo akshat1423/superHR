@@ -58,7 +58,7 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 - **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
 
 ```bash
-npm test                                             # 377 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
+npm test                                             # 385 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
 BASE_URL=http://localhost:3000 npm run test:e2e      # 90 checks as each persona against a running app
 ```
 

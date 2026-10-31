@@ -52,6 +52,26 @@ ok("syncing the same joiners again finds nothing new", again.length === 0, Strin
 const bad = parseProfiles({ name: "x", format: "json", tabular: { headers: [...CANON], rows: [{ ...form, manager: "Nobody Known", start_date: "31/02/2026" }] } }, SAMPLE_DIRECTORY, 200);
 ok("a hand-typed record with a bad manager and date is rejected with reasons", bad.data.length === 0 && bad.issues.some((i) => /manager/i.test(i.message)) && bad.issues.some((i) => /date/i.test(i.message)), JSON.stringify(bad.issues.map((i) => i.message)));
 
+console.log("\nthe demo tenant's first sync");
+const { demoTenantRows } = await import("../../src/lib/ats/demoTenant");
+const tenant = demoTenantRows();
+const known = new Set(usePeople.getState().people.map((p) => p.email.toLowerCase()));
+const syncParsed = parseProfiles({ name: "sync", format: "json", tabular: { headers: [...CANON], rows: tenant } }, SAMPLE_DIRECTORY, 500);
+const fresh = syncParsed.data.filter((p) => !known.has(p.email.toLowerCase()));
+ok("the tenant has the people already onboarding plus new hires", tenant.length === 19, String(tenant.length));
+ok("exactly the new hires come through as new, and every one is valid", fresh.length === tenant.length - 14 && fresh.length >= 5 && syncParsed.issues.every((i) => i.severity !== "error"), `${fresh.length} new, issues ${JSON.stringify(syncParsed.issues.map((i) => i.message))}`);
+ok("…the other 14 are recognised as already onboarding", syncParsed.data.length - fresh.length === 14);
+ok("the new hires span departments, countries and levels (so checklists differ)", new Set(fresh.map((p) => p.persona.dept)).size >= 3 && new Set(fresh.map((p) => p.location)).size >= 4 && fresh.some((p) => p.persona.type === "Intern"));
+ok("some have gaps, so the data-missing flow has something to show", fresh.some((p) => Object.values(p.fields).includes("missing")));
+const ghPages = ATS_LIST[0];
+const pagesN = Math.ceil(tenant.length / ghPages.pageSize);
+ok("the tenant is served in more than one page", pagesN >= 2 && ghPages.describe(ghPages.toPage(tenant, 1, ghPages.pageSize, "acme")).records === ghPages.pageSize);
+usePeople.getState().addPeople(fresh);
+useOnboarding.getState().ensure(usePeople.getState().people);
+const again2 = syncParsed.data.filter((p) => !new Set(usePeople.getState().people.map((x) => x.email.toLowerCase())).has(p.email.toLowerCase()));
+ok("after adding them, syncing again finds nothing new", again2.length === 0);
+ok("each new hire has a checklist, and the US one gets US requirements", fresh.every((p) => (useOnboarding.getState().items[p.id]?.length ?? 0) > 10) && useOnboarding.getState().items[fresh.find((p) => p.location === "Austin")!.id].some((i) => i.reason.includes("US") || i.policy === "POL-02"));
+
 console.log("\nthe reference-data editors");
 const { parseRequirements, parsePolicies, parseDirectory } = await import("../../src/lib/onboarding/datasets");
 const { DEFAULT_REQUIREMENTS } = await import("../../src/lib/onboarding/rules");

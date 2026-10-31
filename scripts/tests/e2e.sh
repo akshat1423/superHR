@@ -121,7 +121,7 @@ for v in greenhouse lever workday; do
   r=$(ats priya $v "$GOOD")
   ok "$v page 1 answers in the vendor's own format with 10 records" "$(eq "$(has "$r" '"ok":true')$(has "$r" '"mode":"sandbox"')$(has "$r" '"records":10')$(has "$r" '"hasNext":true')" 1111)"
   r2=$(ats priya $v '{"tenant":"acme","token":"demo-8f3a1c9d2b7e","page":2}')
-  ok "$v page 2 has the last 4 and says it is the last" "$(eq "$(has "$r2" '"records":4')$(has "$r2" '"hasNext":false')" 11)"
+  ok "$v page 2 has the last 9 (19 in the tenant) and says it is the last" "$(eq "$(has "$r2" '"records":9')$(has "$r2" '"hasNext":false')" 11)"
   ok "$v refuses a bad API key the way the vendor would" "$(eq "$(has "$(ats priya $v '{"tenant":"acme","token":"invalid","page":1}')" '"status":401')$(has "$(ats priya $v '{"tenant":"acme","token":"invalid","page":1}')" '"ok":false')" 11)"
 done
 ok "the greenhouse payload is not our CSV columns" "$(hasnt "$(ats priya greenhouse "$GOOD")" '"full_name"')"

@@ -14,7 +14,7 @@ const INPUT = "mt-1 block w-full rounded-lg border border-line bg-[#fffdf7] px-3
  * Add one new joiner by hand. Departments and managers come from the directory, so the usual typos can't happen;
  * the record then goes through the same validation as any import before it is added.
  */
-export function JoinerForm({ onLoaded, busy }: { onLoaded: (loaded: Loaded, label: string) => void; busy: boolean }) {
+export function JoinerForm({ onLoaded, busy }: { onLoaded: (loaded: Loaded, label: string) => unknown; busy: boolean }) {
   const dir = useOnboarding((s) => s.directory);
   const [f, setF] = useState<Record<string, string>>({ emp_type: "Full-time", level: "Mid", department: dir.departments[0] ?? "", manager: "" });
   const set = (k: string) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));

@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth/session";
 import { canBulkUpload } from "@/lib/auth/policy";
 import { ATS_PROVIDERS, isAtsId } from "@/lib/ats/providers";
-import { tabularFromCsv } from "@/lib/onboarding/datasets";
+import { demoTenantRows } from "@/lib/ats/demoTenant";
 import { allow } from "@/lib/rateLimit";
-import { SAMPLE_CSV } from "@/lib/sample";
 import { hash01 } from "@/lib/utils";
 
 export const maxDuration = 60;
@@ -57,7 +56,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const ms = 90 + Math.floor(hash01(`${provider}|${tenant}|${page}`) * 260);
   if (token.length < 8 || token.toLowerCase() === "invalid")
     return NextResponse.json({ ok: false, mode: "sandbox", request, status: 401, ms, error: provider === "workday" ? "invalid_grant: the integration system user token was rejected" : provider === "lever" ? "Unauthorized: API key is invalid" : "Invalid Basic Auth credentials" });
-  const rows = tabularFromCsv(SAMPLE_CSV).rows;
+  const rows = demoTenantRows();
   const payload = p.toPage(rows, page, p.pageSize, tenant);
   return NextResponse.json({ ok: true, mode: "sandbox", request, status: 200, ms, payload, ...p.describe(payload), total: rows.length });
 }

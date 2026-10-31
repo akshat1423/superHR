@@ -17,7 +17,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * page of the vendor's API (see api/ats), maps the vendor payload to joiner fields, and hands the result to the same
  * validation as an upload. The log shows what was actually requested and returned.
  */
-export function AtsSync({ onLoaded, busy }: { onLoaded: (loaded: Loaded, label: string) => void; busy: boolean }) {
+export function AtsSync({ onLoaded, busy }: { onLoaded: (loaded: Loaded, label: string) => { ready: number; skipped: number }; busy: boolean }) {
   const [id, setId] = useState<AtsId>("greenhouse");
   const [tenant, setTenant] = useState<Record<AtsId, string>>({ greenhouse: "harvest.greenhouse.io", lever: "api.lever.co", workday: "acme" });
   const [token, setToken] = useState(DEMO_TOKEN);
@@ -58,7 +58,10 @@ export function AtsSync({ onLoaded, busy }: { onLoaded: (loaded: Loaded, label: 
       if (!rows.length) { push(`${p.name} has no ${p.noun} to import.`, "info"); return; }
       push("Checking every record against the directory…");
       await wait(250);
-      onLoaded({ name: `${p.name} · ${tenant[id] || p.tenantPlaceholder}`, format: "json", tabular: { headers: [...CANON], rows } }, `${p.name} sync`);
+      const out = onLoaded({ name: `${p.name} · ${tenant[id] || p.tenantPlaceholder}`, format: "json", tabular: { headers: [...CANON], rows } }, `${p.name} sync`);
+      if (out.skipped) push(`${out.skipped} already onboarding (same email), skipped.`);
+      if (out.ready) push(`${out.ready} new joiner${out.ready === 1 ? "" : "s"} ready to review →`, "ok");
+      else push(out.skipped ? "Already up to date: everyone in the ATS is already onboarding, so nothing new to import." : "Nothing could be imported — see the message below.", out.skipped ? "info" : "error");
     } catch {
       push("The connection dropped before it finished. Nothing was imported.", "error");
     } finally { setRunning(false); }

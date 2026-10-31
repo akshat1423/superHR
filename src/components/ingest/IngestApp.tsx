@@ -45,7 +45,7 @@ export function IngestApp() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /** Validate whatever came in (file, ATS or form) the same way, then show the report. */
-  const receive = (loaded: Loaded, name: string, asMerge: boolean) => {
+  const receive = (loaded: Loaded, name: string, asMerge: boolean): { ready: number; skipped: number } => {
     const existing = usePeople.getState().people;
     const res = parseProfiles(loaded, directory, asMerge ? nextId(existing) : 0);
     let data = res.data, dup = 0;
@@ -55,9 +55,10 @@ export function IngestApp() {
     }
     setResult({ ...res, data }); setFileName(name); setMerge(asMerge); setSkipped(dup); setFatal(null);
     // a source that can't be read at all stays on this screen with its report
-    if (!res.data.length) { setStage(0); setFatal(res.issues.find((i) => i.severity === "error")?.message ?? "Nothing could be imported"); return; }
-    if (!data.length) { setStage(0); setFatal(`All ${dup} joiner${dup === 1 ? " is" : "s are"} already onboarding, so there is nothing new to import.`); return; }
+    if (!res.data.length) { setStage(0); setFatal(res.issues.find((i) => i.severity === "error")?.message ?? "Nothing could be imported"); return { ready: 0, skipped: dup }; }
+    if (!data.length) { setStage(0); setFatal(`All ${dup} joiner${dup === 1 ? " is" : "s are"} already onboarding, so there is nothing new to import.`); return { ready: 0, skipped: dup }; }
     setStage(1);
+    return { ready: data.length, skipped: dup };
   };
   const handle = async (file: File) => {
     setBusy(true); setFatal(null);
