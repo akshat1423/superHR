@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/auth/session";
+import { AgentChat } from "@/components/agent/AgentChat";
 import { AuthProvider } from "./AuthProvider";
 import { Header } from "./Header";
 import { ProvisionDriver } from "./ProvisionDriver";
@@ -15,6 +16,7 @@ export async function SessionShell({ children }: { children: React.ReactNode }) 
       <Header />
       <main className="relative min-h-0 flex-1">{children}</main>
       <ProvisionDriver />
+      {user && <AgentChat />}
       <Hydrate />
     </AuthProvider>
   );

@@ -90,6 +90,17 @@ export function retrieve(question: string, passages: Passage[], k = 4): Hit[] {
 }
 
 /**
+ * Words the question uses that appear nowhere in these passages (not even as a synonym). A question about "dogs" in
+ * an office cannot be answered by a policy that never mentions them, however many of its other words match. Used by
+ * the chat agent, which searches every policy rather than only those applying to one employee.
+ */
+export function unknownTerms(question: string, passages: Passage[]): string[] {
+  const raw = question.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean);
+  const have = new Set(passages.flatMap((p) => tokenize(`${p.title} ${p.heading} ${p.text}`)));
+  return raw.filter((w) => w.length > 2 && !STOP.has(w) && !FILLER.has(w) && !have.has(stem(w)) && !(SYNONYMS[w] ?? []).some((s) => have.has(stem(s))));
+}
+
+/**
  * Below this the best passage is only a coincidental word match, so the question is treated as not covered.
  * Tuned on scripts/tests/assistant.test.mts (answerable and unanswerable questions).
  */

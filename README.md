@@ -54,9 +54,17 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 - **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
 
 ```bash
-npm test                                             # 257 domain checks, no server needed
-BASE_URL=http://localhost:3000 npm run test:e2e      # 39 checks as each persona against a running app
+npm test                                             # 336 checks (rules, ingest, documents, scenarios, assistant, services, chat agent); no server needed
+BASE_URL=http://localhost:3000 npm run test:e2e      # 72 checks as each persona against a running app
 ```
+
+## Chat agent ("Ask superjoin")
+
+A button on every signed-in page opens a chat to discuss and act on onboarding. Everyone can ask about people, checklists (and *why* each item exists), failures, and policy; answers about policy cite the policy (`[POL-04 §1]`) and say "not covered" rather than guess. Staff can also say "retry email for Yash" or "send the escalation for Priya" — the agent shows exactly what it will do and **nothing happens until you click Confirm**.
+
+- **What each role can use** (enforced by the tool list the server offers, and again when an action is run): new joiner → own record + policies; manager → also escalations and service status for their reports; HR / department head → also retry a failed service and email an escalation.
+- **With `ANTHROPIC_API_KEY`:** `POST /api/agent/chat` takes one model step at a time. The model asks for tools, the browser runs them against the user's own scope of the data (which lives in the browser) and sends the results back, until it answers. The system prompt and tool list come from the verified session, not the request.
+- **Without a key** (or if the model is unreachable): an offline router answers from the same tools, and the panel says "from your data" instead of "AI".
 
 ## Provisioning services (server functions)
 

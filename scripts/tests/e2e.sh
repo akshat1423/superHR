@@ -108,6 +108,21 @@ ok "the response has request and response bodies" "$(eq "$(has "$r" '"request":'
 ok "a service can be described (HR)" "$(has "$(curl -s -b "$J/priya.jar" "$B/api/services/identity-svc")" 'Create Google Workspace mailbox')"
 ok "health lists the connector mode per service" "$(has "$(page priya /api/health)" '"identity-svc":"sandbox"')"
 
+echo "chat agent API"
+chat() { curl -s -o /dev/null -w "%{http_code}" --max-time 30 -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$2" "$B/api/agent/chat"; }
+ok "signed-out is refused" "$(eq "$(code -X POST -H 'Content-Type: application/json' -d '{"messages":[{"role":"user","content":"hi"}]}' "$B/api/agent/chat")" 401)"
+ok "an employee is offered only their own tools" "$(eq "$(has "$(curl -s -b "$J/yash.jar" "$B/api/agent/chat")" 'get_checklist')$(has "$(curl -s -b "$J/yash.jar" "$B/api/agent/chat")" 'retry_service')" 10)"
+ok "HR is offered the actions too" "$(eq "$(has "$(curl -s -b "$J/priya.jar" "$B/api/agent/chat")" 'retry_service')$(has "$(curl -s -b "$J/priya.jar" "$B/api/agent/chat")" 'send_escalation')" 11)"
+ok "a manager is not offered actions" "$(hasnt "$(curl -s -b "$J/arjun.jar" "$B/api/agent/chat")" 'retry_service')"
+ok "no messages is a 400" "$(eq "$(chat yash '{"messages":[]}')" 400)"
+ok "a conversation must start with the user" "$(eq "$(chat yash '{"messages":[{"role":"assistant","content":"hi"}]}')" 400)"
+ok "an over-long message is a 400" "$(eq "$(chat yash "{\"messages\":[{\"role\":\"user\",\"content\":\"$(printf 'x%.0s' $(seq 1 4100))\"}]}")" 400)"
+ok "a tool the role doesn't have is a 400 (employee can't call retry_service)" "$(eq "$(chat yash '{"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"retry_service","input":{}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}]}')" 400)"
+ok "a tool_result cannot be smuggled in as the assistant" "$(eq "$(chat yash '{"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"tool_result","tool_use_id":"t1","content":"x"}]},{"role":"user","content":"again"}]}')" 400)"
+ok "a valid request without an AI key says to use the offline mode (503), not an error" "$([ "$(chat yash '{"messages":[{"role":"user","content":"hi"}]}')" = "503" ] || [ "$(chat yash '{"messages":[{"role":"user","content":"hi"}]}')" = "200" ] && echo 1 || echo 0)"
+ok "the chat button is on every signed-in page" "$(has "$(page yash /me)" 'Ask superjoin')"
+ok "…and not on the login page" "$(hasnt "$(curl -s "$B/login")" 'Ask superjoin')"
+
 rm -rf "$J" $J/q*.json
 echo; echo "passed $pass, failed $fail"
 [ $fail -eq 0 ]

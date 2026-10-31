@@ -73,3 +73,21 @@ export async function extractWithClaude(base64: string, mime: string): Promise<R
   const block = res.content.find((b) => b.type === "text");
   return block && block.type === "text" ? (JSON.parse(block.text) as Record<string, string | null>) : {};
 }
+
+/** One step of the chat agent: the model either answers or asks for tools, which the browser runs against its own data. */
+export type AgentMessage = Anthropic.Beta.BetaMessageParam;
+export async function agentTurn(system: string, messages: AgentMessage[], tools: { name: string; description: string; input_schema: Record<string, unknown> }[]) {
+  const res = await anthropic().beta.messages.create({
+    model: AI_MODEL,
+    max_tokens: 2000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system,
+    tools: tools as unknown as Anthropic.Beta.BetaTool[],
+    messages,
+    output_config: { effort: "low" },
+  });
+  type Block = { type: "text"; text: string } | { type: "tool_use"; id: string; name: string; input: unknown };
+  const content = res.content.flatMap<Block>((b) => (b.type === "text" ? [{ type: "text" as const, text: b.text }] : b.type === "tool_use" ? [{ type: "tool_use" as const, id: b.id, name: b.name, input: b.input }] : []));
+  return { content, stop_reason: res.stop_reason };
+}
