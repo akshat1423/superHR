@@ -32,7 +32,7 @@ function StepNodeView({ data, selected }: NodeProps<StepNodeType>) {
     <div className={cn("sj-node", `k-${kind}`, selected && "sel")}>
       <Handle type="target" position={Position.Left} />
       <span className={cn("dchip", chip)}>{fmtDay(data.day)}</span>
-      <Glyph k={data.key} size={38} tone={TONE[kind]} />
+      <Glyph k={data.key} size={kind === "app" ? 60 : 38} tone={TONE[kind]} />
       <div className="nt">
         <b>{data.title}</b>
         <div className="meta">

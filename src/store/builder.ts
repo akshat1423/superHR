@@ -17,8 +17,9 @@ interface BuilderState {
   edges: Edge[];
   selectedId: string | null;
   picker: Picker | null;
-  /** bumps whenever the canvas should re-fit (persona switch) */
-  fitToken: number;
+  /** asks the canvas to move its viewport; `n` makes repeated identical requests distinct */
+  viewRequest: { kind: "start" | "fit" | "apps"; n: number };
+  requestView: (kind: "start" | "fit" | "apps") => void;
   seq: number;
   loadPersona: (p: Persona) => void;
   onNodesChange: (c: NodeChange<StepNode>[]) => void;
@@ -35,18 +36,46 @@ interface BuilderState {
 
 const edgeOf = (source: string, target: string): Edge => ({ id: `e-${source}-${target}`, source, target, type: "insert" });
 
+/** App cards are bigger than plain steps: the logo is the point. */
+export const APP_SIZE = { w: 236, h: 92 };
+export const STEP_SIZE = { w: 212, h: 72 };
+/** vertical centre every stage is laid out around */
+export const STAGE_CENTER_Y = 416;
+const COL_W = 252;
+const ROW_GAP = 16;
+/** stages with this many blocks (the app-access stage) become a two-column grid so they can be zoomed into */
+const GRID_FROM = 5;
+
+const sizeOf = (key: string) => (BLOCKS[key]?.perm ? APP_SIZE : STEP_SIZE);
+
 function build(p: Persona) {
   const nodes: StepNode[] = [];
   const edges: Edge[] = [];
   let seq = 0;
   let prev: StepNode[] = [];
-  genStages(p).forEach((stage, si) => {
-    const cur: StepNode[] = stage.items.map((it, j) => ({
-      id: `n${++seq}`,
-      type: "step",
-      position: { x: 60 + si * 250, y: 380 - (stage.items.length - 1) * 45 + j * 90 },
-      data: resolveSpec(it, stage.day, p.level) as StepData,
-    }));
+  let x = 60;
+  genStages(p).forEach((stage) => {
+    const count = stage.items.length;
+    const cols = count >= GRID_FROM ? 2 : 1;
+    const rows = Math.ceil(count / cols);
+    // column-major fill; each column is centred on the stage centre line
+    const colItems = (c: number) => stage.items.slice(c * rows, (c + 1) * rows);
+    const cur: StepNode[] = [];
+    for (let c = 0; c < cols; c++) {
+      const items = colItems(c);
+      const total = items.reduce((s, it) => s + sizeOf(it.key).h, 0) + (items.length - 1) * ROW_GAP;
+      let y = STAGE_CENTER_Y - total / 2;
+      for (const it of items) {
+        cur.push({
+          id: `n${++seq}`,
+          type: "step",
+          position: { x: x + c * COL_W, y },
+          data: resolveSpec(it, stage.day, p.level) as StepData,
+        });
+        y += sizeOf(it.key).h + ROW_GAP;
+      }
+    }
+    x += cols * COL_W;
     cur.forEach((n, j) => {
       if (!prev.length) return;
       if (cur.length === 1) prev.forEach((a) => edges.push(edgeOf(a.id, n.id)));
@@ -75,9 +104,10 @@ export const useBuilder = create<BuilderState>((set) => ({
   ...initial,
   selectedId: null,
   picker: null,
-  fitToken: 0,
+  viewRequest: { kind: "start", n: 0 },
+  requestView: (kind) => set((s) => ({ viewRequest: { kind, n: s.viewRequest.n + 1 } })),
 
-  loadPersona: (persona) => set((s) => ({ persona, ...build(persona), selectedId: null, picker: null, fitToken: s.fitToken + 1 })),
+  loadPersona: (persona) => set((s) => ({ persona, ...build(persona), selectedId: null, picker: null, viewRequest: { kind: "start", n: s.viewRequest.n + 1 } })),
 
   onNodesChange: (changes) => set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) })),
   onEdgesChange: (changes) => set((s) => ({ edges: applyEdgeChanges(changes, s.edges) })),

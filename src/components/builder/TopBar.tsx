@@ -9,7 +9,9 @@ export function TopBar() {
   const persona = useBuilder((s) => s.persona);
   const nodes = useBuilder((s) => s.nodes);
   const load = useBuilder((s) => s.loadPersona);
+  const requestView = useBuilder((s) => s.requestView);
   const days = nodes.map((n) => n.data.day);
+  const apps = nodes.filter((n) => n.data.perm).length;
 
   const change = (k: keyof Persona, v: string) => {
     const p = { ...persona, [k]: v } as Persona;
@@ -27,6 +29,13 @@ export function TopBar() {
       <Select label="Level" value={persona.level} options={levels.map((l) => [l, lvlName(l, persona.dept)])} onChange={(v) => change("level", v)} />
       <span className="eyebrow ml-2">{nodes.length} steps · {fmtDay(Math.min(...days))} → {fmtDay(Math.max(...days))}</span>
       <span className="flex-1" />
+      <div className="inline-flex gap-0.5 rounded-xl bg-[#d9d1bd] p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,.18)]" role="group" aria-label="View">
+        {([["start", "Start"], ["fit", "Whole flow"], ["apps", `Apps · ${apps}`]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => requestView(k)} className="rounded-[9px] px-3.5 py-2 font-mono text-[11px] uppercase tracking-[.1em] text-[#6b6252] transition-colors hover:bg-ink hover:text-white">
+            {label}
+          </button>
+        ))}
+      </div>
       <span className="eyebrow">v14 · draft</span>
       <Button onClick={() => toast("Saved as draft v14 — HR and the department head can both see it")}>Save</Button>
       <Button accent onClick={() => toast("Sent to HR to publish")}>Publish</Button>

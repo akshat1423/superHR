@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect } from "react";
-import { Background, BackgroundVariant, Controls, ReactFlow, useReactFlow } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, ReactFlow, getViewportForBounds, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { BLOCKS } from "@/lib/catalog";
-import { useBuilder } from "@/store/builder";
+import { APP_SIZE, STAGE_CENTER_Y, useBuilder } from "@/store/builder";
+import { toast } from "@/store/toast";
 import { StepNodeMemo } from "./StepNode";
 import { InsertEdge } from "./InsertEdge";
 import { TimelineRuler } from "./TimelineRuler";
@@ -13,22 +14,37 @@ import { DND_MIME } from "./Palette";
 const nodeTypes = { step: StepNodeMemo };
 const edgeTypes = { insert: InsertEdge };
 const START_ZOOM = 0.9;
-/** y of the vertical centre of a stage in the generated layout */
-const CENTER_Y = 416;
 
 export function Canvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, select, addBlock, addPack, fitToken } = useBuilder();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, select, addBlock, addPack, viewRequest } = useBuilder();
   const rf = useReactFlow();
 
-  // Start readable (left edge of the flow, vertically centred) rather than zooming everything out.
-  const focusStart = useCallback(() => {
-    const h = document.querySelector(".sj-canvas .react-flow")?.clientHeight ?? 600;
-    rf.setViewport({ x: 28, y: h / 2 - CENTER_Y * START_ZOOM, zoom: START_ZOOM }, { duration: 300 });
-  }, [rf]);
+  // Move the viewport when asked: readable start, whole flow, or zoomed onto the app logos.
   useEffect(() => {
-    const t = setTimeout(focusStart, 60);
+    const t = setTimeout(() => {
+      if (viewRequest.kind === "start") {
+        const h = document.querySelector(".sj-canvas .react-flow")?.clientHeight ?? 600;
+        rf.setViewport({ x: 28, y: h / 2 - STAGE_CENTER_Y * START_ZOOM, zoom: START_ZOOM }, { duration: 300 });
+      } else if (viewRequest.kind === "fit") {
+        rf.fitView({ padding: 0.1, duration: 450 });
+      } else {
+        // zoom to the main app-access stage: the day with the most app blocks (earliest wins a tie)
+        const all = useBuilder.getState().nodes.filter((n) => n.data.perm);
+        if (!all.length) { toast("This workflow has no app access blocks"); return; }
+        const perDay = new Map<number, typeof all>();
+        for (const n of all) perDay.set(n.data.day, [...(perDay.get(n.data.day) ?? []), n]);
+        const apps = [...perDay.entries()].sort((a, b) => b[1].length - a[1].length || a[0] - b[0])[0][1];
+        const x0 = Math.min(...apps.map((n) => n.position.x));
+        const y0 = Math.min(...apps.map((n) => n.position.y));
+        const x1 = Math.max(...apps.map((n) => n.position.x + APP_SIZE.w));
+        const y1 = Math.max(...apps.map((n) => n.position.y + APP_SIZE.h));
+        const box = document.querySelector(".sj-canvas .react-flow");
+        const vp = getViewportForBounds({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, box?.clientWidth ?? 900, box?.clientHeight ?? 600, 0.2, 1.5, 0.12);
+        rf.setViewport(vp, { duration: 600 });
+      }
+    }, 60);
     return () => clearTimeout(t);
-  }, [fitToken, focusStart]);
+  }, [viewRequest, rf]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -69,7 +85,7 @@ export function Canvas() {
         onDragOver={(e) => e.preventDefault()}
         defaultViewport={{ x: 28, y: 40, zoom: START_ZOOM }}
         minZoom={0.2}
-        maxZoom={1.6}
+        maxZoom={1.8}
         deleteKeyCode={null}
         proOptions={{ hideAttribution: true }}
       >
