@@ -53,53 +53,96 @@
   border: 2px solid #fffdf7;
 }
 
-/* step node */
+/* step block: a little paper ticket. The left edge says what kind of step it is. */
 .sj-node {
+  --edge: #cfc6b2;
   position: relative;
-  width: 196px;
-  height: 60px;
+  width: 212px;
+  height: 72px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  background: #fffdf7;
-  border: 1px solid #d8cfba;
-  border-radius: 14px;
-  box-shadow: 0 1px 0 #fff inset, 0 4px 10px rgba(107, 90, 58, 0.12);
+  gap: 11px;
+  padding: 0 14px 0 14px;
+  background-color: #fffdf7;
+  background-image: radial-gradient(#ebe3cf 1px, transparent 1.2px);
+  background-size: 9px 9px;
+  border: 1px solid #ddd4bf;
+  border-left: 5px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 0 1px 0 #fff inset, 0 1px 2px rgba(107, 90, 58, 0.14), 0 8px 18px rgba(107, 90, 58, 0.12);
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
-.sj-node:hover { border-color: #a99d86; }
-.sj-node.sel { border-color: var(--color-ink); box-shadow: 0 0 0 3px rgba(196, 87, 47, 0.28), 0 4px 10px rgba(107, 90, 58, 0.12); }
-.sj-node.appr { background: #faf1d8; border-style: dashed; border-color: #a8812a; }
+.sj-node.k-app { --edge: var(--color-ink); }
+.sj-node.k-candidate { --edge: var(--color-acc); }
+.sj-node.k-approval { --edge: #c58a14; background-color: #fcf5df; border-top-style: dashed; border-right-style: dashed; border-bottom-style: dashed; border-color: #d9b45a; }
+.sj-node:hover { transform: translateY(-2px); box-shadow: 0 1px 0 #fff inset, 0 2px 4px rgba(107, 90, 58, 0.16), 0 14px 26px rgba(107, 90, 58, 0.2); }
+.sj-node.sel { transform: translateY(-2px); border-color: var(--color-ink); border-left-color: var(--edge); box-shadow: 0 0 0 3px rgba(196, 87, 47, 0.3), 0 14px 26px rgba(107, 90, 58, 0.22); }
 .sj-node .nt { min-width: 0; flex: 1; }
-.sj-node .nt b { display: block; font-size: 13px; font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sj-node .nt small { display: block; margin-top: 2px; font: 400 10px var(--font-jetbrains), monospace; color: var(--color-mute); white-space: nowrap; }
+.sj-node .nt b { display: block; font-size: 13.5px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sj-node .meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.sj-node .who { padding: 1px 7px; border-radius: 99px; background: #efe8d6; color: #5b5244; font: 500 9.5px var(--font-jetbrains), monospace; letter-spacing: 0.02em; }
+.sj-node .meter { display: inline-flex; align-items: center; gap: 2px; }
+.sj-node .meter i { width: 9px; height: 4px; border-radius: 2px; background: #ddd4bf; }
+.sj-node .meter i.on { background: var(--color-ink); }
+.sj-node .meter em { margin-left: 3px; font: 500 9.5px var(--font-jetbrains), monospace; font-style: normal; color: var(--color-mute); }
+
+/* day stub, like a ticket tab */
 .sj-node .dchip {
   position: absolute;
-  top: -9px;
-  left: 12px;
-  padding: 1px 7px;
+  top: -10px;
+  left: 14px;
+  padding: 2px 9px;
   border-radius: 99px;
   font: 600 9.5px var(--font-jetbrains), monospace;
-  letter-spacing: 0.04em;
-  background: #f1ebdb;
+  letter-spacing: 0.05em;
+  background: #f4efe3;
   color: #5b5244;
   border: 1px solid #d8cfba;
+  box-shadow: 0 1px 0 #fff inset;
 }
 .sj-node .dchip.zero { background: var(--color-acc); border-color: var(--color-acc); color: #fff; }
-.sj-node .dchip.pos { background: var(--color-ink); border-color: var(--color-ink); color: #fff; }
-.sj-node .vbadge {
+.sj-node .dchip.pos { background: var(--color-ink); border-color: var(--color-ink); color: #f4efe3; }
+
+/* verifier stamp */
+.sj-node .stamp {
   position: absolute;
   right: 10px;
-  bottom: -8px;
-  padding: 0 7px;
-  border-radius: 99px;
-  font: 600 9px var(--font-jetbrains), monospace;
-  background: #a8812a;
-  color: #fff;
+  bottom: -9px;
+  padding: 1px 8px;
+  border: 1.5px solid #2f7d4f;
+  border-radius: 7px;
+  background: #e6f1e9;
+  color: #1d5234;
+  font: 700 9px var(--font-jetbrains), monospace;
+  letter-spacing: 0.04em;
   white-space: nowrap;
+  transform: rotate(-2deg);
 }
+
+/* palette tiles */
+.sj-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 6px 10px;
+  border: 1px solid #ddd4bf;
+  border-radius: 14px;
+  background-color: #fffdf7;
+  background-image: radial-gradient(#ebe3cf 1px, transparent 1.2px);
+  background-size: 9px 9px;
+  box-shadow: 0 1px 0 #fff inset, 0 3px 8px rgba(107, 90, 58, 0.1);
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sj-tile:hover { transform: translateY(-3px) rotate(-0.8deg); box-shadow: 0 1px 0 #fff inset, 0 12px 20px rgba(107, 90, 58, 0.2); }
+.sj-tile:active { cursor: grabbing; }
+.sj-tile small { font: 500 8.5px var(--font-jetbrains), monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-mute); }
 
 /* insert "+" on edges */
 .sj-eplus {

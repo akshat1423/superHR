@@ -1,12 +1,15 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
-import { BLOCKS_BY_CAT, CATEGORIES, PACKS } from "@/lib/catalog";
-import { Glyph, Mono } from "@/components/ui/Glyph";
+import { BLOCKS_BY_CAT, CATEGORIES, PACKS, type BlockDef } from "@/lib/catalog";
+import { Glyph, Mono, type Tone } from "@/components/ui/Glyph";
 import { useBuilder } from "@/store/builder";
 import { toast } from "@/store/toast";
 
 export const DND_MIME = "application/superjoin";
+
+/** Same kind → tone mapping as the canvas nodes (see StepNode). */
+const toneOf = (b: BlockDef): Tone => (b.key === "approve" ? "amber" : b.perm ? "ink" : b.owner === "Candidate" ? "acc" : "paper");
 type Payload = { kind: "block" | "pack"; id: string };
 
 export function Palette() {
@@ -30,7 +33,7 @@ export function Palette() {
     const el = document.querySelector(".sj-canvas .react-flow");
     const r = el?.getBoundingClientRect();
     const pos = rf.screenToFlowPosition({ x: (r?.left ?? 0) + (r?.width ?? 600) / 2, y: (r?.top ?? 0) + (r?.height ?? 400) / 2 });
-    const at = { x: pos.x - 98, y: pos.y - 60 };
+    const at = { x: pos.x - 106, y: pos.y - 70 };
     if (p.kind === "block") addBlock(p.id, at);
     else { addPack(p.id, at); toast(`Added pack “${p.id}”`); }
   };
@@ -50,15 +53,19 @@ export function Palette() {
               {c.name}
               <span className="font-normal">{c.id === "packs" ? PACKS.length : (BLOCKS_BY_CAT[c.id] ?? []).length}</span>
             </summary>
-            <div className="pb-1.5">
+            <div className="grid grid-cols-2 gap-2 px-0.5 pb-2.5 pt-0.5">
               {c.packs.map((p) => (
-                <div key={p.name} className="sj-row" draggable onDragStart={(e) => drag(e, { kind: "pack", id: p.name })} onClick={() => addAtCenter({ kind: "pack", id: p.name })}>
-                  <Mono text={`+${p.keys.length}`} size={26} />{p.name}
+                <div key={p.name} className="sj-tile" draggable onDragStart={(e) => drag(e, { kind: "pack", id: p.name })} onClick={() => addAtCenter({ kind: "pack", id: p.name })}>
+                  <Mono text={`+${p.keys.length}`} size={38} tone="ink" />
+                  {p.name}
+                  <small>pack</small>
                 </div>
               ))}
               {c.blocks.map((b) => (
-                <div key={b.key} className="sj-row" draggable onDragStart={(e) => drag(e, { kind: "block", id: b.key })} onClick={() => addAtCenter({ kind: "block", id: b.key })}>
-                  <Glyph k={b.key} size={26} />{b.name}{b.perm && <small>access</small>}
+                <div key={b.key} className="sj-tile" draggable onDragStart={(e) => drag(e, { kind: "block", id: b.key })} onClick={() => addAtCenter({ kind: "block", id: b.key })}>
+                  <Glyph k={b.key} size={38} tone={toneOf(b)} />
+                  {b.name}
+                  <small>{b.perm ? "app access" : b.owner}</small>
                 </div>
               ))}
             </div>

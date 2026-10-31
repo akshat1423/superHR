@@ -14,7 +14,7 @@ const nodeTypes = { step: StepNodeMemo };
 const edgeTypes = { insert: InsertEdge };
 const START_ZOOM = 0.9;
 /** y of the vertical centre of a stage in the generated layout */
-const CENTER_Y = 410;
+const CENTER_Y = 416;
 
 export function Canvas() {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, select, addBlock, addPack, fitToken } = useBuilder();
@@ -36,7 +36,7 @@ export function Canvas() {
     if (!raw) return;
     const { kind, id } = JSON.parse(raw) as { kind: "block" | "pack"; id: string };
     const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-    const at = { x: p.x - 98, y: p.y - 30 };
+    const at = { x: p.x - 106, y: p.y - 36 };
     if (kind === "block" && BLOCKS[id]) addBlock(id, at);
     if (kind === "pack") addPack(id, at);
   }, [rf, addBlock, addPack]);
