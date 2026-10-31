@@ -1,15 +1,21 @@
 "use client";
 import { DEPTS, LEVELS, TYPES, fmtDay, lvlName, personaLabel, type Persona } from "@/lib/workflow";
 import { Button } from "@/components/ui/Button";
+import { useUser } from "@/components/shell/AuthProvider";
+import { canPublish } from "@/lib/auth/policy";
 import { useBuilder } from "@/store/builder";
 import { toast } from "@/store/toast";
+import { useReadOnly, useReadOnlyReason } from "./useReadOnly";
 
-/** One quiet row: who this workflow is for, how big it is, and save/publish. */
+/** One quiet row: who this workflow is for, how big it is, and save/publish (if your role allows). */
 export function TopBar() {
+  const user = useUser();
   const persona = useBuilder((s) => s.persona);
   const nodes = useBuilder((s) => s.nodes);
   const load = useBuilder((s) => s.loadPersona);
   const requestView = useBuilder((s) => s.requestView);
+  const readOnly = useReadOnly();
+  const reason = useReadOnlyReason();
   const days = nodes.map((n) => n.data.day);
   const apps = nodes.filter((n) => n.data.perm).length;
 
@@ -36,9 +42,17 @@ export function TopBar() {
           </button>
         ))}
       </div>
-      <span className="eyebrow">v14 · draft</span>
-      <Button onClick={() => toast("Saved as draft v14 — HR and the department head can both see it")}>Save</Button>
-      <Button accent onClick={() => toast("Sent to HR to publish")}>Publish</Button>
+      {readOnly ? (
+        <span title={reason} className="flex items-center gap-1.5 rounded-xl border border-line bg-[#fffdf7] px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[.1em] text-[#4b4338]">🔒 View only</span>
+      ) : (
+        <>
+          <span className="eyebrow">v14 · draft</span>
+          <Button onClick={() => toast("Saved as draft v14 — HR and the department head can both see it")}>Save</Button>
+          {canPublish(user)
+            ? <Button accent onClick={() => toast("Published — new joiners now get v14")}>Publish</Button>
+            : <Button accent onClick={() => toast("Submitted to HR for review and publishing")}>Submit to HR</Button>}
+        </>
+      )}
     </div>
   );
 }

@@ -7,13 +7,16 @@ import { Seg } from "@/components/ui/Seg";
 import { DEPTS, LEVELS, TIMELINE_BREAKS, flatSteps, personaLabel, type Dept, type EmpType, type Level, type Persona } from "@/lib/workflow";
 import { cn, hash01 } from "@/lib/utils";
 import { useBuilder } from "@/store/builder";
+import { useUser } from "@/components/shell/AuthProvider";
+import { canEditWorkflow } from "@/lib/auth/policy";
 
 const EDITORS = ["Priya (HR)", "Arjun (Eng Head)", "Neha (Finance Head)", "Sam (HR)", "Isha (Product Head)"];
-const HEADS: Record<Dept, string> = { Engineering: "Arjun", Finance: "Neha", Product: "Isha", Business: "Rahul", People: "Priya" };
+const HEADS: Record<Dept, string> = { Engineering: "Vikram", Finance: "Neha", Product: "Isha", Business: "Rahul", People: "Priya" };
 const LEVEL_SUB: Record<Level, string> = { Intern: "stipend · conversion", Associate: "SDE-1 · Analyst", Mid: "SDE-2", Senior: "SDE-3 · Sr.", Leader: "Director+" };
 
 export function LibraryApp() {
   const router = useRouter();
+  const user = useUser();
   const loadPersona = useBuilder((s) => s.loadPersona);
   const [type, setType] = useState<EmpType>("Full-time");
   const levels: Level[] = type === "Intern" ? ["Intern"] : LEVELS.slice(1);
@@ -79,7 +82,7 @@ export function LibraryApp() {
                       <div className="flex h-6 items-end gap-0.5">
                         {c.buckets.map((v, i) => <i key={i} className="flex-1 rounded-t-sm bg-ink" style={{ height: `${Math.max(8, (v / mx) * 100)}%` }} />)}
                       </div>
-                      <div className="mt-2 flex justify-between font-mono text-[9.5px] text-mute"><span>{c.editor}</span><span>{c.ago}d ago</span></div>
+                      <div className="mt-2 flex justify-between font-mono text-[9.5px] text-mute"><span>{c.editor}</span><span>{canEditWorkflow(user, c.persona) ? `${c.ago}d ago` : "🔒 view only"}</span></div>
                       <span className="mt-2 hidden font-mono text-[10px] uppercase tracking-[.1em] text-acc group-hover:block">open in builder ↗</span>
                     </button>
                   );

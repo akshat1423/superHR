@@ -13,6 +13,17 @@ export const STATUS_LABEL: Record<TaskStatus, string> = {
   skipped: "Skipped",
 };
 
+/** Plain-language labels for the new joiner. */
+export const SIMPLE_LABEL: Record<TaskStatus, string> = {
+  queued: "Coming up",
+  running: "In progress",
+  retry: "In progress",
+  done: "Done",
+  waiting: "Waiting on you",
+  failed: "The team is on it",
+  skipped: "On hold",
+};
+
 export const STATUS_TEXT: Record<TaskStatus, string> = {
   queued: "text-mute",
   running: "text-acc",
@@ -34,12 +45,13 @@ const TONE: Record<TaskStatus, string> = {
 };
 
 /** One service for one person as a small stamp: icon + a corner mark for its state. */
-export function TaskChip({ t, i, size = 32 }: { t: Task; i: number; size?: number }) {
+/** `simple` is the new joiner's view: the tooltip never carries system detail such as failure titles. */
+export function TaskChip({ t, i, size = 32, simple }: { t: Task; i: number; size?: number; simple?: boolean }) {
   const sv = SERVICES[i];
   const Icon = ICONS[sv.icon] ?? ICONS.Box;
   return (
     <span
-      title={`${sv.name} — ${STATUS_LABEL[t.status]}${t.detail ? `: ${t.detail}` : ""}${t.failure ? `: ${t.failure.title}` : ""}`}
+      title={simple ? `${sv.name} — ${SIMPLE_LABEL[t.status]}` : `${sv.name} — ${STATUS_LABEL[t.status]}${t.detail ? `: ${t.detail}` : ""}${t.failure ? `: ${t.failure.title}` : ""}`}
       className={cn("relative inline-grid flex-none place-items-center overflow-visible rounded-[10px] border text-ink", TONE[t.status], t.status === "running" && "animate-pulse")}
       style={{ width: size, height: size }}
     >

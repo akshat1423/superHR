@@ -11,6 +11,8 @@ interface PeopleState {
   setStepStatus: (personId: string, stepId: string, status: Status) => void;
   /** missing → requested (magic link sent) → submitted by candidate */
   advanceField: (personId: string, field: FieldKey) => void;
+  /** the new joiner provides a field themselves (any state → filled by candidate) */
+  submitField: (personId: string, field: FieldKey) => void;
   markSent: (key: string) => void;
 }
 
@@ -30,5 +32,7 @@ export const usePeople = create<PeopleState>((set) => ({
         return { ...p, fields: { ...p.fields, [field]: next } };
       }),
     })),
+  submitField: (pid, field) =>
+    set((s) => ({ people: patch(s.people, pid, (p) => ({ ...p, fields: { ...p.fields, [field]: "cand" } })) })),
   markSent: (key) => set((s) => ({ sent: { ...s.sent, [key]: true } })),
 }));

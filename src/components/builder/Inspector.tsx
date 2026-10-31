@@ -5,6 +5,7 @@ import { Glyph } from "@/components/ui/Glyph";
 import { fmtDay, type Reminder } from "@/lib/workflow";
 import { useBuilder } from "@/store/builder";
 import { cn } from "@/lib/utils";
+import { useReadOnly } from "./useReadOnly";
 
 const REMINDERS: [Reminder, string][] = [["none", "No reminders"], ["due", "On due date only"], ["daily", "Daily until done"], ["ladder", "Escalation ladder"]];
 
@@ -12,7 +13,15 @@ export function Inspector() {
   const nodes = useBuilder((s) => s.nodes);
   const selectedId = useBuilder((s) => s.selectedId);
   const node = nodes.find((n) => n.id === selectedId);
-  return <aside className="sj-panel"><div className="sj-scroll p-4">{node ? <StepEditor id={node.id} /> : <Summary />}</div></aside>;
+  const readOnly = useReadOnly();
+  return (
+    <aside className="sj-panel">
+      <div className="sj-scroll p-4">
+        {/* a disabled fieldset turns off every input and button inside it */}
+        <fieldset disabled={readOnly} className="min-w-0 border-0 p-0">{node ? <StepEditor id={node.id} /> : <Summary />}</fieldset>
+      </div>
+    </aside>
+  );
 }
 
 function Summary() {

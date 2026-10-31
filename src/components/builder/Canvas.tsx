@@ -10,6 +10,7 @@ import { InsertEdge } from "./InsertEdge";
 import { TimelineRuler } from "./TimelineRuler";
 import { BlockPicker } from "./BlockPicker";
 import { DND_MIME } from "./Palette";
+import { useReadOnly } from "./useReadOnly";
 
 const nodeTypes = { step: StepNodeMemo };
 const edgeTypes = { insert: InsertEdge };
@@ -18,6 +19,7 @@ const START_ZOOM = 0.9;
 export function Canvas() {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, select, addBlock, addPack, viewRequest } = useBuilder();
   const rf = useReactFlow();
+  const readOnly = useReadOnly();
 
   // Move the viewport when asked: readable start, whole flow, or zoomed onto the app logos.
   useEffect(() => {
@@ -48,6 +50,7 @@ export function Canvas() {
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (readOnly) return;
     const raw = e.dataTransfer.getData(DND_MIME);
     if (!raw) return;
     const { kind, id } = JSON.parse(raw) as { kind: "block" | "pack"; id: string };
@@ -55,10 +58,11 @@ export function Canvas() {
     const at = { x: p.x - 106, y: p.y - 36 };
     if (kind === "block" && BLOCKS[id]) addBlock(id, at);
     if (kind === "pack") addPack(id, at);
-  }, [rf, addBlock, addPack]);
+  }, [rf, addBlock, addPack, readOnly]);
 
   // Delete removes the step and re-links its neighbours (React Flow's default would orphan them).
   useEffect(() => {
+    if (readOnly) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Backspace" && e.key !== "Delete") return;
       if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName ?? "")) return;
@@ -67,7 +71,7 @@ export function Canvas() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [readOnly]);
 
   return (
     <div className="sj-canvas">
@@ -83,6 +87,8 @@ export function Canvas() {
         onPaneClick={() => select(null)}
         onDrop={onDrop}
         onDragOver={(e) => e.preventDefault()}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
         defaultViewport={{ x: 28, y: 40, zoom: START_ZOOM }}
         minZoom={0.2}
         maxZoom={1.8}
