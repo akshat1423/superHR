@@ -25,6 +25,18 @@ export function ChecklistView({ view, mode, onUpload }: { view: EmployeeView; mo
   const { items, states, docs, summary, person } = view;
 
   const canAct = (i: ChecklistItem) => mode === "staff" && (user.role === "hr" || user.role === "dept_head" || (user.role === "manager" && i.ownerFn === "Manager"));
+  const canAsk = (i: ChecklistItem) => mode === "staff" && (user.role === "hr" || user.role === "dept_head") && (i.kind === "approval" || i.kind === "provision") && i.status !== "completed";
+  const askWhatsApp = async (i: ChecklistItem) => {
+    const res = await fetch("/api/whatsapp/requests", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personId: person.id, itemId: i.id, toEmail: i.owner.email, title: `${i.item}: ${person.name}`, body: `${person.name} (${person.role}, ${person.persona.dept}) joins on ${fmtHuman(person.startDate)}. ${i.reason}`, dept: person.persona.dept, manager: person.manager }),
+    }).catch(() => null);
+    const d = (await res?.json().catch(() => null)) as { ok?: boolean; duplicate?: boolean; via?: string; mode?: string; reason?: string; detail?: string; setupRequired?: boolean } | null;
+    if (!res || !d) { toast("Couldn't reach the server"); return; }
+    if (res.status === 503) { toast("WhatsApp isn't set up on the server yet (run the SQL first)"); return; }
+    if (d.ok) toast(d.duplicate ? `Already asked ${i.owner.name.split(" ")[0]}: waiting for their answer` : `Asked ${i.owner.name.split(" ")[0]} on WhatsApp${d.mode === "sandbox" ? " (sandbox: not actually sent)" : d.via === "template" ? " (as a template message)" : ""}`);
+    else toast(d.detail ?? "Couldn't ask on WhatsApp");
+  };
   const act = (i: ChecklistItem) => {
     const r = completeItem(person.id, i.id, user.name);
     toast(r.ok ? `${i.item}: done` : (r.reason ?? "Can't complete this yet"));
@@ -73,6 +85,7 @@ export function ChecklistView({ view, mode, onUpload }: { view: EmployeeView; mo
                       {i.kind === "approval" ? "Approve" : i.kind === "provision" ? "Fulfilled" : "Mark done"}
                     </button>
                   )}
+                  {canAsk(i) && <button disabled={waiting.length > 0} title={`Send ${i.owner.name.split(" ")[0]} an Approve / Reject request on WhatsApp`} className="mt-1 block w-full rounded-lg border border-[#5d9a73] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[.08em] text-[#1d5234] hover:bg-[#dbeadf] disabled:opacity-40" onClick={() => void askWhatsApp(i)}>Ask on WhatsApp</button>}
                 </div>
               </div>
               {open === i.id && (

@@ -3,7 +3,7 @@ import { DEPTS, type Dept, type Persona } from "../workflow";
 import type { DemoUser, Role } from "./users";
 
 /** Top-level areas of the dashboard. One policy table decides who can open each. */
-export type Area = "me" | "tracker" | "employees" | "builder" | "library" | "ingest" | "reminders" | "agents";
+export type Area = "me" | "tracker" | "employees" | "builder" | "library" | "ingest" | "reminders" | "agents" | "whatsapp";
 
 export const AREA_ACCESS: Record<Area, Role[]> = {
   me: ["employee"],
@@ -15,6 +15,7 @@ export const AREA_ACCESS: Record<Area, Role[]> = {
   ingest: ["hr"],
   reminders: ["hr", "dept_head", "manager"],
   agents: ["hr", "dept_head"],
+  whatsapp: ["hr"],
 };
 
 export const AREA_LABEL: Record<Area, string> = {
@@ -26,10 +27,11 @@ export const AREA_LABEL: Record<Area, string> = {
   ingest: "Ingest",
   reminders: "Reminders",
   agents: "Agents",
+  whatsapp: "WhatsApp",
 };
 
 /** Order the tabs appear in. */
-export const AREAS: Area[] = ["me", "tracker", "builder", "library", "ingest", "reminders", "agents"];
+export const AREAS: Area[] = ["me", "tracker", "builder", "library", "ingest", "reminders", "agents", "whatsapp"];
 /** Areas that appear as tabs in the header (the rest are reached from inside the app). */
 export const TAB_AREAS: Area[] = AREAS;
 

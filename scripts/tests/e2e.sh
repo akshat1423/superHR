@@ -190,6 +190,11 @@ ok "a valid request without an AI key says to use the offline mode (503), not an
 ok "the chat button is on every signed-in page" "$(has "$(page yash /me)" 'Ask superjoin')"
 ok "…and not on the login page" "$(hasnt "$(curl -s "$B/login")" 'Ask superjoin')"
 
+if [ -n "${WA_E2E:-}" ]; then
+  # a script that fails to parse would otherwise stop part-way and still report a clean pass
+  if bash -n scripts/tests/e2e-whatsapp.sh 2>/dev/null; then . scripts/tests/e2e-whatsapp.sh; else fail=$((fail+1)); echo "  FAIL e2e-whatsapp.sh has a syntax error, so its checks did not run"; fi
+else echo; echo "(WhatsApp checks skipped: set WA_E2E=1 with WA_APP_SECRET, WA_VERIFY_TOKEN and WA_ROUTER_KEY, against a server started with the same values)"; fi
+
 rm -rf "$J" $J/q*.json
 echo; echo "passed $pass, failed $fail"
 [ $fail -eq 0 ]

@@ -57,5 +57,26 @@ if (batches.error || events.error) bad("gated read", (batches.error ?? events.er
 else ok(`gated read works — ${batches.count ?? 0} batch(es), ${events.count ?? 0} event(s) stored`);
 if ((batches.count ?? 0) === 0) console.log("      (empty — load the sample history with `npm run db:seed`)");
 
+// WhatsApp (optional): who has joined, approvals waiting, the message log
+console.log("\nWhatsApp tables (optional)");
+const wa = await gated.from("wa_contacts").select("id", { count: "exact" }).limit(1);
+if (wa.error?.code === "PGRST205") {
+  console.log("  – not created yet. To use WhatsApp, run `npm run db:sql` again, paste the output into the SQL editor and re-run this check.");
+} else if (wa.error) {
+  bad("wa_contacts query failed", wa.error.message);
+} else {
+  ok("tables exist (wa_contacts, wa_requests, wa_messages)");
+  const intruder2 = await bare.from("wa_contacts").insert({ id: "gate-probe", kind: "joiner", name: "x", status: "invited", created_by: "x" });
+  if (intruder2.error?.code === "42501") ok("gate holds: the public key alone cannot write contacts (RLS refused it)");
+  else bad(`gate is OPEN or the probe misbehaved on wa_contacts (${intruder2.error?.code ?? "no error"})`, "re-run the SQL from `npm run db:sql`: the policies must call public.app_gate()");
+  const seen2 = await bare.from("wa_contacts").select("id").limit(1);
+  if (seen2.error || (seen2.data?.length ?? 0) === 0) ok("gate holds: the public key alone reads no contacts");
+  else bad("gate is OPEN: the public key alone can read WhatsApp contacts");
+  const req = await gated.from("wa_requests").select("id", { count: "exact" }).limit(1);
+  const msg = await gated.from("wa_messages").select("id", { count: "exact" }).limit(1);
+  if (req.error || msg.error) bad("gated read of WhatsApp tables", (req.error ?? msg.error)?.message);
+  else ok(`gated read works: ${wa.count ?? 0} contact(s), ${req.count ?? 0} request(s), ${msg.count ?? 0} message(s)`);
+}
+
 console.log(failed ? `\n${failed} check(s) failed.` : "\nAll good.");
 process.exit(failed ? 1 : 0);

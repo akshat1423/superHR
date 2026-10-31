@@ -58,9 +58,46 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 - **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
 
 ```bash
-npm test                                             # 481 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
+npm test                                             # 579 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS, document service, deprovisioning, WhatsApp); no server needed
 BASE_URL=http://localhost:3000 npm run test:e2e      # 120 checks as each persona against a running app
+# …plus 75 WhatsApp checks (signed webhooks, joining, approvals, routing, the simulator) against a server started with test settings:
+#   WHATSAPP_STORE=memory WHATSAPP_APP_SECRET=s WHATSAPP_VERIFY_TOKEN=v WHATSAPP_ROUTER_KEY=r WHATSAPP_DISPLAY_NUMBER=15551234567 npm run dev
+#   WA_E2E=1 WA_APP_SECRET=s WA_VERIFY_TOKEN=v WA_ROUTER_KEY=r BASE_URL=http://localhost:3000 npm run test:e2e
 ```
+
+## WhatsApp
+
+Reminders, approvals and questions on WhatsApp, modelled on chatflow's WhatsApp Cloud API integration (webhook verify, signed inbound, interactive buttons, templates, a number people "join" with a code and leave with an exit word).
+
+- **Notifications**: every reminder, escalation and correction email also goes to WhatsApp for anyone who has joined it (the Outbox does this; email is unaffected if WhatsApp isn't set up or the person isn't on it).
+- **Approvals**: on an approval or provisioning item, HR or a department head clicks **Ask on WhatsApp**. The owner gets *Approve / Reject* buttons (or can reply `APPROVE` / `REJECT`, with the 4-letter code if several are waiting). Only the number the request was sent to can answer, once, within 72 hours. The answer is applied to the checklist by a signed-in browser (the checklist lives in the browser), recorded as "<name> (via WhatsApp)".
+- **Questions**: a connected joiner can ask about their onboarding or policy and gets the same grounded, cited answer as the in-app assistant (or "not covered, ask HR"), from their own record only. Anyone else gets nothing personal.
+- **Connecting**: a QR code in the footer of every page (sign-in included) opens WhatsApp. Signed in, **Connect my WhatsApp** makes a personal QR whose message `JOIN <code>` links the phone that sends it, so a number is proven, never typed in. HR can also invite people from the **WhatsApp** tab. `STOP` mutes, `START` resumes, `EXIT` forgets the number, `HELP` says what's possible.
+- **Try it with no Meta account**: **WhatsApp → Try it** is a phone that runs the real handler (messages are recorded, never sent). Without `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` everything works this way.
+
+**Set up (live)**
+1. `npm run db:sql`, paste into the Supabase SQL editor (adds `wa_contacts`, `wa_requests`, `wa_messages`, locked behind the same app key as the logs), then `npm run db:check`.
+2. Set `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` and `WHATSAPP_DISPLAY_NUMBER` (see `.env.example`).
+3. In Meta → WhatsApp → Configuration: callback URL `https://<your-app>/api/whatsapp/webhook`, your verify token, subscribe to **messages**. The webhook refuses everything without `WHATSAPP_APP_SECRET` and rejects any call whose `x-hub-signature-256` doesn't match.
+4. **Templates (WhatsApp's 24-hour rule)**: free-form messages are allowed only within 24 hours of the person's last message. Beyond that, create and get approved in Meta, then set `WHATSAPP_TEMPLATE_NOTIFY` (utility, body like `Onboarding update: {{1}} Reply STOP to stop messages.`) and `WHATSAPP_TEMPLATE_APPROVAL` (the same body plus two quick-reply buttons, *Approve* and *Reject*). Without them, an out-of-window message is not sent and the Activity tab says why.
+
+**Sharing the number with superconnect.** Meta sends every message for a number to one webhook, so two apps on one number need one to hand messages to the other. Both must be the same Meta app (same app secret). Set `WHATSAPP_ROUTER_KEY` here; in chatflow's `whatsapp-verify/post-handler.ts`, after its signature check and before the account lookup, forward what belongs to superHR, unchanged:
+```ts
+const route = Deno.env.get('SUPERHR_ROUTE_URL'), hook = Deno.env.get('SUPERHR_WEBHOOK_URL'), key = Deno.env.get('SUPERHR_ROUTER_KEY');
+if (route && hook && key) try {
+  const m = JSON.parse(rawBody)?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  if (m?.from) {
+    const r = await fetch(route, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` }, body: JSON.stringify({ phone: m.from, text: m.text?.body ?? '' }), signal: AbortSignal.timeout(3000) });
+    if (r.ok && (await r.json()).handle) {
+      await fetch(hook, { method: 'POST', headers: { 'content-type': 'application/json', 'x-hub-signature-256': req.headers.get('x-hub-signature-256') ?? '' }, body: rawBody });
+      return new Response('ok', { status: 200, headers: corsHeaders });
+    }
+  }
+} catch (e) { console.error('superHR routing failed, continuing normally', e); }
+```
+(`SUPERHR_ROUTE_URL` = `https://<your-app>/api/whatsapp/route`, `SUPERHR_WEBHOOK_URL` = `…/api/whatsapp/webhook`.) While someone is joined to superHR all their messages go to superHR; `EXIT` hands the number back, like chatflow's sandbox exit code. This snippet has **not** been applied to or tested against chatflow.
+
+**Limits.** The server holds only who joined, pending approvals and a snapshot per joiner (pushed by a signed-in browser when their checklist changes); the checklist itself stays in the browser, so approvals are applied, and answers refreshed, only while a signed-in browser is open. Not covered: joiners sending documents over WhatsApp, WhatsApp Q&A for managers or HR, delivery receipts, and the live Meta calls (tested only against a local mock of the Graph API).
 
 ## Changing, deprovisioning and terminating
 
