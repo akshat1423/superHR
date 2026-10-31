@@ -46,7 +46,11 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 
 ## HR onboarding agent (Level 1)
 
-- **Ingest** (`/ingest`, HR) — CSV / Excel / JSON, validated for mandatory fields, date formats and manager/department references; row-level report; four datasets (profiles, requirements, policies, owners) with sample / upload / reset. Sample files are in `public/samples`.
+- **Ingest** (`/ingest`, HR) — three ways in, all through the same validation (mandatory fields, date formats, manager/department references, row-level report):
+  - **Sync from ATS** — pick Greenhouse, Lever or Workday, connect, and the app pulls hired candidates page by page (the log shows each request, status and record count), maps the vendor's fields to joiners, and adds only people not already onboarding. The demo tenant answers in each vendor's real API format; set `ATS_<VENDOR>_URL` and `ATS_<VENDOR>_TOKEN` on the server to read a live tenant (not tested against a live tenant).
+  - **Add a joiner** — a form (department and manager are dropdowns from the directory).
+  - **Upload a file** — CSV / Excel / JSON; replaces the current batch. Sample files are in `public/samples`.
+  - **Reference data** (requirements, policies, owners & managers) is edited in the app (rule editor with live validation, policy editor, owner tables), or uploaded; saving recalculates every checklist.
 - **Checklists** — requirements are data (`src/lib/onboarding/rules.ts`); every item says which rule produced it. States: completed / pending / blocked / overdue.
 - **Documents** — Not Submitted → Submitted → Under Review → Accepted / Correction Requested. Extracted name, dates and document type are compared with the profile by our own code.
 - **Assistant** — answers only from approved policies and the person's own checklist, cites the policy, and says "not covered" (naming HR) otherwise. With `ANTHROPIC_API_KEY` the reply is written by Claude and then verified against the sources; without it the answer is quoted extractively.
@@ -54,8 +58,8 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 - **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
 
 ```bash
-npm test                                             # 336 checks (rules, ingest, documents, scenarios, assistant, services, chat agent); no server needed
-BASE_URL=http://localhost:3000 npm run test:e2e      # 72 checks as each persona against a running app
+npm test                                             # 377 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
+BASE_URL=http://localhost:3000 npm run test:e2e      # 90 checks as each persona against a running app
 ```
 
 ## Chat agent ("Ask superjoin")

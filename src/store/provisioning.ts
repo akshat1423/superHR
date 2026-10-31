@@ -23,6 +23,8 @@ interface ProvisioningState {
   setSpeed: (s: Speed) => void;
   /** begin a fresh live run (after a CSV ingest) */
   start: (people: Person[], by: string) => void;
+  /** start provisioning for people added to the existing batch, as a new run that keeps everyone else's history */
+  append: (people: Person[], by: string) => void;
   tick: (n: number) => void;
   retry: (personId: string, svcId: string, by: string) => void;
   /** server calls the engine is waiting to make (each is returned once) */
@@ -49,6 +51,12 @@ export const useProvisioning = create<ProvisioningState>((set, get) => ({
   setSpeed: (speed) => set({ speed }),
   start: (people, by) =>
     set({ batch: people, run: initRun(people, true), batchId: `b-${Date.now().toString(36)}`, startedBy: by, flushedSeq: 0, stored: 0, sync: "idle" }),
+  append: (people, by) =>
+    set((s) => {
+      const fresh = initRun(people, true);
+      // a new batch id, and only events from here on are streamed to it (earlier ones are already stored)
+      return { batch: [...s.batch, ...people], run: { ...s.run, remote: true, people: [...s.run.people, ...fresh.people] }, batchId: `b-${Date.now().toString(36)}`, startedBy: by, flushedSeq: s.run.seq, stored: 0, sync: "idle" };
+    }),
   tick: (n) => {
     const { run, batch } = get();
     if (!hasActivity(run)) return;

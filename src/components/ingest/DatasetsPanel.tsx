@@ -9,6 +9,7 @@ import { useOnboarding } from "@/store/onboarding";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
 import { IssueList } from "./IssueList";
+import { OwnersEditor, PoliciesEditor, RulesEditor } from "./RefEditors";
 
 type Kind = "requirements" | "policies" | "owners";
 
@@ -21,7 +22,8 @@ const META: Record<Kind, { title: string; what: string; accept: string; samples:
 /** Reference data the checklist is built from. Replacing it recalculates every employee's checklist. */
 export function DatasetsPanel() {
   const user = useUser();
-  const { info, requirements, policies, setRequirements, setPolicies, setDirectory } = useOnboarding();
+  const { info, requirements, policies, directory, setRequirements, setPolicies, setDirectory } = useOnboarding();
+  const [editing, setEditing] = useState<Kind | null>(null);
   const [reports, setReports] = useState<Partial<Record<Kind, RowIssue[]>>>({});
   const [busy, setBusy] = useState<Kind | null>(null);
   const [addMode, setAddMode] = useState(true);
@@ -86,7 +88,8 @@ export function DatasetsPanel() {
               <div className={cn("mt-2 rounded-lg px-2.5 py-1.5 font-mono text-[10.5px]", src === "Built-in sample" ? "bg-[#ece4d0] text-[#5b5244]" : "bg-[#dbeadf] text-[#1d5234]")}>Source: {src}</div>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <input ref={refs[k]} type="file" hidden multiple={k === "policies"} accept={m.accept} onChange={(e) => { const fs = [...(e.target.files ?? [])]; if (fs.length) void apply(k, fs); }} />
-                <button disabled={busy === k} onClick={() => refs[k].current?.click()} className="rounded-lg bg-ink px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[.08em] text-white disabled:opacity-50">{busy === k ? "Reading…" : "Upload"}</button>
+                <button onClick={() => setEditing(k)} className="rounded-lg bg-ink px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[.08em] text-white">Edit</button>
+                <button disabled={busy === k} onClick={() => refs[k].current?.click()} className="rounded-lg border border-line px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[.08em] hover:bg-[#ece4d0] disabled:opacity-50">{busy === k ? "Reading…" : "Upload file"}</button>
                 <button disabled={busy === k} onClick={() => void sample(k)} className="rounded-lg border border-line px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[.08em] hover:bg-[#ece4d0]">Use sample</button>
                 {src !== "Built-in sample" && <button onClick={() => reset(k)} className="rounded-lg border border-line px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[.08em] hover:bg-[#f6d6d2]">Reset</button>}
               </div>
@@ -97,6 +100,19 @@ export function DatasetsPanel() {
           );
         })}
       </div>
+
+      {editing === "requirements" && (
+        <RulesEditor initial={requirements} policyIds={policies.map((p) => p.id)} departments={directory.departments} onClose={() => setEditing(null)}
+          onSave={(r) => { const o = setRequirements(r, "Edited in the app", user.name); toast(`${r.length} rules saved · ${o.employees} employee checklists recalculated (+${o.added} / −${o.removed} items)`); setEditing(null); }} />
+      )}
+      {editing === "policies" && (
+        <PoliciesEditor initial={policies} departments={directory.departments} onClose={() => setEditing(null)}
+          onSave={(p) => { setPolicies(p, "Edited in the app", "replace", user.name); toast(`${p.length} polic${p.length === 1 ? "y" : "ies"} saved`); setEditing(null); }} />
+      )}
+      {editing === "owners" && (
+        <OwnersEditor initial={directory} onClose={() => setEditing(null)}
+          onSave={(d) => { setDirectory(d, "Edited in the app", user.name); toast(`Directory saved: ${d.owners.length} owners, ${d.managers.length} managers — owners updated on every checklist`); setEditing(null); }} />
+      )}
     </div>
   );
 }

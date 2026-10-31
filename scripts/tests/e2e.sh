@@ -108,6 +108,28 @@ ok "the response has request and response bodies" "$(eq "$(has "$r" '"request":'
 ok "a service can be described (HR)" "$(has "$(curl -s -b "$J/priya.jar" "$B/api/services/identity-svc")" 'Create Google Workspace mailbox')"
 ok "health lists the connector mode per service" "$(has "$(page priya /api/health)" '"identity-svc":"sandbox"')"
 
+echo "ATS sync API"
+ats() { curl -s --max-time 30 -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$3" "$B/api/ats/$2"; }
+atsc() { code -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$3" "$B/api/ats/$2"; }
+GOOD='{"tenant":"acme","token":"demo-8f3a1c9d2b7e","page":1}'
+ok "signed-out is refused" "$(eq "$(code -X POST -H 'Content-Type: application/json' -d "$GOOD" "$B/api/ats/greenhouse")" 401)"
+ok "only HR can sync (a manager gets 403)" "$(eq "$(atsc arjun greenhouse "$GOOD")" 403)"
+ok "…nor a department head" "$(eq "$(atsc vikram greenhouse "$GOOD")" 403)"
+ok "an unknown ATS is a 404" "$(eq "$(atsc priya taleo "$GOOD")" 404)"
+ok "a malformed request is a 400" "$(eq "$(atsc priya greenhouse '{"page":1}')" 400)"
+for v in greenhouse lever workday; do
+  r=$(ats priya $v "$GOOD")
+  ok "$v page 1 answers in the vendor's own format with 10 records" "$(eq "$(has "$r" '"ok":true')$(has "$r" '"mode":"sandbox"')$(has "$r" '"records":10')$(has "$r" '"hasNext":true')" 1111)"
+  r2=$(ats priya $v '{"tenant":"acme","token":"demo-8f3a1c9d2b7e","page":2}')
+  ok "$v page 2 has the last 4 and says it is the last" "$(eq "$(has "$r2" '"records":4')$(has "$r2" '"hasNext":false')" 11)"
+  ok "$v refuses a bad API key the way the vendor would" "$(eq "$(has "$(ats priya $v '{"tenant":"acme","token":"invalid","page":1}')" '"status":401')$(has "$(ats priya $v '{"tenant":"acme","token":"invalid","page":1}')" '"ok":false')" 11)"
+done
+ok "the greenhouse payload is not our CSV columns" "$(hasnt "$(ats priya greenhouse "$GOOD")" '"full_name"')"
+ing=$(page priya /ingest)
+ok "ingest offers all three ways in" "$(eq "$(has "$ing" 'Sync from ATS')$(has "$ing" 'Add a joiner')$(has "$ing" 'Upload a file')" 111)"
+ok "…and the ATS panel is the default" "$(has "$ing" 'Connect &amp; fetch from Greenhouse')"
+ok "reference data can be edited in the app, not only uploaded" "$(has "$ing" '>Edit<')"
+
 echo "chat agent API"
 chat() { curl -s -o /dev/null -w "%{http_code}" --max-time 30 -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$2" "$B/api/agent/chat"; }
 ok "signed-out is refused" "$(eq "$(code -X POST -H 'Content-Type: application/json' -d '{"messages":[{"role":"user","content":"hi"}]}' "$B/api/agent/chat")" 401)"

@@ -26,6 +26,8 @@ interface PeopleState {
   isSample: boolean;
   /** replace the batch (after a CSV ingest) */
   loadBatch: (people: Person[]) => void;
+  /** add joiners to the existing batch (an ATS sync, or one added by hand) */
+  addPeople: (added: Person[]) => void;
   setStepStatus: (personId: string, stepId: string, status: Status) => void;
   /** missing → requested (magic link sent) → submitted by candidate */
   advanceField: (personId: string, field: FieldKey) => void;
@@ -44,6 +46,7 @@ export const usePeople = create<PeopleState>()(
       sent: {},
       isSample: true,
       loadBatch: (people) => set({ people, sent: {}, isSample: false }),
+      addPeople: (added) => set((s) => ({ people: [...s.people, ...added], isSample: false })),
       setStepStatus: (pid, sid, status) =>
         set((s) => ({ people: patchOne(s.people, pid, (p) => ({ ...p, manual: { ...p.manual, [sid]: status } })) })),
       advanceField: (pid, field) =>
