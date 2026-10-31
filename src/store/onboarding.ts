@@ -5,6 +5,7 @@ import { daysBetween, todayISO } from "@/lib/dates";
 import type { Person } from "@/lib/people";
 import { describeRecalculation, diffContext, recalculate, type Change, type Recalculation } from "@/lib/onboarding/change";
 import { DOC_TYPES, checkFile, emptyDocument, statusAfterValidation, validateDocument } from "@/lib/onboarding/documents";
+import type { ProcessResult } from "@/lib/onboarding/docService";
 import { SAMPLE_DIRECTORY } from "@/lib/onboarding/owners";
 import { SAMPLE_POLICIES } from "@/lib/onboarding/policies";
 import { DEFAULT_REQUIREMENTS, ctxOf, generateChecklist } from "@/lib/onboarding/rules";
@@ -35,7 +36,10 @@ interface OnboardingState {
   setDirectory: (dir: Directory, source: string, actor: string) => void;
 
   markSubmitted: (personId: string, itemId: string, fileName: string, size: number, actor: string) => void;
-  submitDocument: (personId: string, itemId: string, up: Upload, actor: string) => { status: DocStatus; issues: Issue[]; accepted: boolean };
+  /** record an upload; `decided` is the document service's verdict (without it the same checks run locally) */
+  submitDocument: (personId: string, itemId: string, up: Upload, actor: string, decided?: ProcessResult) => { status: DocStatus; issues: Issue[]; accepted: boolean };
+  /** apply the document service's decision to uploads that were left at "Under Review" although they could be read */
+  settleReviews: () => number;
   reviewDocument: (personId: string, itemId: string, decision: "accept" | "correct", note: string, actor: string) => void;
   completeItem: (personId: string, itemId: string, actor: string) => { ok: boolean; reason?: string };
   acknowledge: (personId: string, itemId: string, actor: string) => void;
@@ -186,7 +190,7 @@ export const useOnboarding = create<OnboardingState>()(
           addAudit([{ actor, personId: pid, action: "Document submitted", detail: `${it.item}: ${fileName}` }]);
         },
 
-        submitDocument: (pid, itemId, up, actor) => {
+        submitDocument: (pid, itemId, up, actor, decided) => {
           const it = lineage(pid, itemId);
           const p = person(pid);
           if (!it?.docType || !p) return { status: "Not Submitted", issues: [], accepted: false };
@@ -198,23 +202,45 @@ export const useOnboarding = create<OnboardingState>()(
           const prev = get().docs[itemId] ?? emptyDocument(pid, itemId, it.docType);
           const attempts = prev.status === "Submitted" ? prev.attempts : prev.attempts + 1;
           let issues: Issue[]; let status: DocStatus;
-          if (up.extraction === "none" || !up.extracted) {
+          let processing: DocumentRecord["processing"];
+          if (decided) {
+            issues = decided.issues; status = decided.status;
+            processing = { traceId: decided.traceId, mode: decided.mode, steps: decided.steps, at: stamp() };
+          } else if (up.extraction === "none" || !up.extracted) {
             issues = [{ severity: "warning", code: "NOT_AUTO_VALIDATED", message: "This file couldn't be read automatically, so HR will check it by hand." }];
             status = "Under Review";
           } else {
             issues = validateDocument(DOC_TYPES[it.docType], up.extracted, ctxOf(p));
             status = statusAfterValidation(issues);
           }
-          const rec: DocumentRecord = { ...prev, status, fileName: up.fileName, fileSize: up.size, uploadedAt: stamp(), extraction: up.extraction, extracted: up.extracted, issues, attempts, reviewerNote: undefined, reviewedBy: undefined, reviewedAt: undefined };
+          const rec: DocumentRecord = { ...prev, status, fileName: up.fileName, fileSize: up.size, uploadedAt: stamp(), extraction: up.extraction, extracted: up.extracted, issues, attempts, processing, reviewerNote: undefined, reviewedBy: undefined, reviewedAt: undefined };
           set((s) => ({ docs: { ...s.docs, [itemId]: rec } }));
-          // a correction request takes a previously-finished item back to pending
-          if (status === "Correction Requested" && it.status === "completed") setItems(pid, get().items[pid].map((i) => (i.id === itemId ? { ...i, status: "pending", completedAt: undefined } : i)));
+          // a clean document completes its item (and anything waiting on it); a correction request takes a finished item back to pending
+          if (status === "Accepted") setItems(pid, cascade(pid, get().items[pid].map((i) => (i.id === itemId ? { ...i, status: "completed" as const, completedAt: stamp() } : i)), "Document service"));
+          else if (status === "Correction Requested" && it.status === "completed") setItems(pid, get().items[pid].map((i) => (i.id === itemId ? { ...i, status: "pending", completedAt: undefined } : i)));
           const errs = issues.filter((i) => i.severity === "error");
+          const svc = decided ? `trace ${decided.traceId}` : "checked in this browser";
           addAudit([
             { actor, personId: pid, action: prev.status === "Not Submitted" || prev.attempts === 0 ? "Document submitted" : "Document re-submitted", detail: `${it.item}: ${up.fileName}` },
-            { actor: "Onboarding agent", personId: pid, action: status === "Correction Requested" ? "Validation failed → Correction Requested" : "Validation passed → Under Review", detail: errs.length ? errs.map((e) => e.message).join(" ") : issues.map((i) => i.message).join(" ") || undefined },
+            { actor: "Document service", personId: pid, action: status === "Accepted" ? "Document accepted automatically" : status === "Correction Requested" ? "Validation failed → Correction Requested" : "Couldn't read it → Under Review", detail: `${errs.length ? errs.map((e) => e.message).join(" ") : issues.map((i) => i.message).join(" ") || "Name, dates and document type match the profile."} (${svc})` },
           ]);
-          return { status, issues, accepted: status === "Under Review" };
+          return { status, issues, accepted: status === "Accepted" };
+        },
+
+        settleReviews: () => {
+          let n = 0;
+          for (const [itemId, d] of Object.entries(get().docs)) {
+            if (d.status !== "Under Review" || !d.extracted || d.reviewedBy) continue;
+            const pid = d.personId, p = person(pid), it = lineage(pid, itemId);
+            if (!p || !it?.docType) continue;
+            const issues = validateDocument(DOC_TYPES[it.docType], d.extracted, ctxOf(p));
+            const status = statusAfterValidation(issues);
+            set((s) => ({ docs: { ...s.docs, [itemId]: { ...d, issues, status } } }));
+            if (status === "Accepted") setItems(pid, cascade(pid, get().items[pid].map((i) => (i.id === itemId ? { ...i, status: "completed" as const, completedAt: stamp() } : i)), "Document service"));
+            addAudit([{ actor: "Document service", personId: pid, action: status === "Accepted" ? "Document accepted automatically" : "Validation failed → Correction Requested", detail: `${it.item}: processed after an earlier upload had been left under review` }]);
+            n++;
+          }
+          return n;
         },
 
         reviewDocument: (pid, itemId, decision, note, actor) => {
@@ -268,9 +294,12 @@ export const useOnboarding = create<OnboardingState>()(
           for (const x of result.removed) delete docs[x.id];
           for (const i of result.items) {
             const d = docs[i.id];
-            if (d && d.status === "Under Review" && d.extracted && i.docType) {
+            if (d && (d.status === "Under Review" || d.status === "Accepted") && !d.reviewedBy && d.extracted && i.docType) {
               const issues = validateDocument(DOC_TYPES[i.docType], d.extracted, newCtx);
-              docs[i.id] = { ...d, issues, status: statusAfterValidation(issues) };
+              const status = statusAfterValidation(issues);
+              docs[i.id] = { ...d, issues, status };
+              // a document that was fine for the old facts but not the new ones goes back to the employee
+              if (status === "Correction Requested" && i.status === "completed") result.items = result.items.map((x) => (x.id === i.id ? { ...x, status: "pending" as const, completedAt: undefined } : x));
             }
           }
           const items = cascade(pid, result.items, actor);

@@ -133,6 +133,8 @@ export interface DocumentRecord {
   reviewedAt?: string;
   /** number of times the employee has re-submitted after a correction request */
   attempts: number;
+  /** how the document service handled the last upload: what it did, step by step, and who decided */
+  processing?: { traceId: string; mode: "text" | "ai" | "manual"; steps: { label: string; ok: boolean; ms: number; detail: string }[]; at: string };
 }
 
 export interface AuditEntry {

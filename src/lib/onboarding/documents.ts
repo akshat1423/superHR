@@ -178,8 +178,8 @@ export function validateDocument(def: DocTypeDef, x: Extracted, e: EmployeeCtx):
 
 export const hasErrors = (issues: Issue[]) => issues.some((i) => i.severity === "error");
 
-/** What a validated upload becomes: errors send it back to the employee, otherwise it waits for HR. */
-export const statusAfterValidation = (issues: Issue[]): DocStatus => (hasErrors(issues) ? "Correction Requested" : "Under Review");
+/** What a validated upload becomes: errors send it back to the employee with the reasons, otherwise it is accepted. */
+export const statusAfterValidation = (issues: Issue[]): DocStatus => (hasErrors(issues) ? "Correction Requested" : "Accepted");
 
 export function emptyDocument(personId: string, itemId: string, docType: DocTypeId): DocumentRecord {
   return { id: `doc:${itemId}`, personId, itemId, docType, status: "Not Submitted", issues: [], attempts: 0 };

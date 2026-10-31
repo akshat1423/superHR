@@ -15,6 +15,8 @@ export function Hydrate() {
       await useOnboarding.persist.rehydrate();
       // anyone without a checklist (e.g. people saved by an older version) gets one; people who are gone lose theirs
       useOnboarding.getState().ensure(usePeople.getState().people);
+      // uploads an earlier version left at "Under Review" although they could be read are decided now
+      useOnboarding.getState().settleReviews();
     })();
   }, []);
   return null;

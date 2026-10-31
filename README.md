@@ -52,14 +52,14 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
   - **Upload a file** — CSV / Excel / JSON; replaces the current batch. Sample files are in `public/samples`.
   - **Reference data** (requirements, policies, owners & managers) is edited in the app (rule editor with live validation, policy editor, owner tables), or uploaded; saving recalculates every checklist.
 - **Checklists** — requirements are data (`src/lib/onboarding/rules.ts`); every item says which rule produced it. States: completed / pending / blocked / overdue.
-- **Documents** — Not Submitted → Submitted → Under Review → Accepted / Correction Requested. Extracted name, dates and document type are compared with the profile by our own code.
+- **Documents** — every upload goes to the **document service** (`POST /api/documents/process`): it receives the file, reads the fields (text files directly; PDFs and scans with the AI reader when `ANTHROPIC_API_KEY` is set), checks name, dates and document type against the person's profile with our own code, and **decides**: a clean document is **Accepted** automatically (its checklist item completes and anything waiting on it is released); one with errors becomes **Correction Requested** with the reasons. Each document keeps the service's steps and trace id. **Under Review** is left for exactly one case: a scan or PDF that can't be read automatically, which needs a person. HR can still overrule any decision. Changing a joining date or role re-checks accepted documents against the new facts.
 - **Assistant** — answers only from approved policies and the person's own checklist, cites the policy, and says "not covered" (naming HR) otherwise. With `ANTHROPIC_API_KEY` the reply is written by Claude and then verified against the sources; without it the answer is quoted extractively.
 - **Dashboard** (`/tracker`) — filters by joining date, department, location and status; open a row for the full checklist.
 - **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
 
 ```bash
-npm test                                             # 391 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
-BASE_URL=http://localhost:3000 npm run test:e2e      # 97 checks as each persona against a running app
+npm test                                             # 425 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
+BASE_URL=http://localhost:3000 npm run test:e2e      # 106 checks as each persona against a running app
 ```
 
 ## Chat agent ("Ask superjoin")

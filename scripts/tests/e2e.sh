@@ -87,6 +87,23 @@ ok "signed-out is refused" "$(eq "$(code -X POST -H 'Content-Type: application/j
 ex=$(code -b "$J/yash.jar" -X POST -H 'Content-Type: application/json' -d '{"mime":"application/pdf","data":"AAAA"}' "$B/api/documents/extract")
 ok "without an AI key it says so (503) instead of pretending" "$([ "$ex" = "503" ] || [ "$ex" = "200" ] && echo 1 || echo 0)"
 
+echo "document service (reads, checks and decides an upload)"
+npx tsx scripts/tests/make-doc-payloads.mts "$J" >/dev/null 2>&1
+dp() { curl -s --max-time 60 -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' --data @"$J/doc-$2.json" "$B/api/documents/process"; }
+dpc() { code -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' --data @"$J/doc-$2.json" "$B/api/documents/process"; }
+ok "signed-out is refused" "$(eq "$(code -X POST -H 'Content-Type: application/json' --data @"$J/doc-valid.json" "$B/api/documents/process")" 401)"
+r=$(dp yash valid)
+ok "a valid ID from the joiner is accepted automatically, not left for HR" "$(eq "$(has "$r" '"status":"Accepted"')$(has "$r" '"mode":"text"')$(hasnt "$r" 'Under Review')" 111)"
+ok "…and the response shows its steps (receive, read, check, decide)" "$(eq "$(has "$r" 'Receive the file')$(has "$r" 'Read the fields')$(has "$r" 'Check against')$(has "$r" '"label":"Decide"')" 1111)"
+r=$(dp yash wrong)
+ok "a document in the wrong name is sent back with the reason" "$(eq "$(has "$r" '"status":"Correction Requested"')$(has "$r" 'NAME_MISMATCH')" 11)"
+ok "a joiner cannot process a document for someone else" "$(eq "$(dpc yash riya)" 403)"
+ok "HR can process one for anyone" "$(eq "$(dpc priya riya)" 200)"
+ok "a file type we don't take is refused outright" "$(has "$(dp yash docx)" '"rejected":true')"
+ok "an unknown document type is a 400" "$(eq "$(dpc yash baddoc)" 400)"
+r=$(dp yash pdf)
+ok "a scan is read by AI when configured, otherwise it goes to a person (the only case left under review)" "$([ "$(has "$r" '"status":"Under Review"')$(has "$r" '"mode":"manual"')" = "11" ] || [ "$(has "$r" '"mode":"ai"')" = "1" ] && echo 1 || echo 0)"
+
 echo "service functions (one endpoint per provisioning service)"
 ENG='{"person":{"id":"p0","name":"Yash Bansal","email":"yash@x.com","role":"ML Engineer","persona":{"type":"Full-time","dept":"Engineering","level":"Mid"},"manager":"Arjun Rao","location":"Bengaluru","grade":"L4","startDate":"2026-10-30","fields":{}},"attempt":1}'
 FIN=${ENG//Engineering/Finance}

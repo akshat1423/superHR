@@ -4,6 +4,7 @@ import { useUser } from "@/components/shell/AuthProvider";
 import { fmtHuman, parseDateISO } from "@/lib/dates";
 import { DOC_TYPES, TEXT_EXT, checkFile, compareNames, extOf, extractFromText, makeSampleDocument, type SampleVariant } from "@/lib/onboarding/documents";
 import { draftCorrection } from "@/lib/onboarding/escalate";
+import type { ProcessResult } from "@/lib/onboarding/docService";
 import type { ChecklistItem, DocumentRecord, Extracted, Issue } from "@/lib/onboarding/types";
 import type { EmployeeView } from "@/hooks/useEmployeeView";
 import { useOnboarding } from "@/store/onboarding";
@@ -99,20 +100,26 @@ function DocCard({ item, doc, view, mode, highlight }: { item: ChecklistItem; do
     }
     setBusy(true);
     try {
-      let up: Parameters<typeof submitDocument>[2];
-      if (TEXT_EXT.includes(extOf(file.name))) {
-        up = { fileName: file.name, size: file.size, extraction: "text", extracted: extractFromText(await file.text(), file.name) };
+      // "Submitted" while the document service works on it
+      markSubmitted(view.person.id, item.id, file.name, file.size, user.name);
+      const isText = TEXT_EXT.includes(extOf(file.name));
+      const body = isText
+        ? { text: await file.text() }
+        : { mime: file.type || (extOf(file.name) === "pdf" ? "application/pdf" : "image/jpeg"), data: await readB64(file) };
+      const res = await fetch("/api/documents/process", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName: file.name, size: file.size, docType: item.docType, person: view.person, ...body }), signal: AbortSignal.timeout(60_000) }).catch(() => null);
+      let r: ReturnType<typeof submitDocument>;
+      if (res && res.ok) {
+        const decided = (await res.json()) as ProcessResult;
+        r = submitDocument(view.person.id, item.id, { fileName: file.name, size: file.size, extraction: decided.extraction, extracted: decided.extracted }, user.name, decided);
       } else {
-        markSubmitted(view.person.id, item.id, file.name, file.size, user.name);
-        const res = await fetch("/api/documents/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mime: file.type || (extOf(file.name) === "pdf" ? "application/pdf" : "image/jpeg"), data: await readB64(file) }) }).catch(() => null);
-        const body = res && res.ok ? ((await res.json()) as { extracted: Record<string, string | null> | null }) : null;
-        const ex: Extracted = {};
-        for (const [k, v] of Object.entries(body?.extracted ?? {})) if (v) (ex as Record<string, string>)[k] = v;
-        up = body?.extracted ? { fileName: file.name, size: file.size, extraction: "ai", extracted: ex } : { fileName: file.name, size: file.size, extraction: "none" };
+        // the service couldn't be reached: run the same checks here instead of leaving the upload hanging
+        const up = isText
+          ? { fileName: file.name, size: file.size, extraction: "text" as const, extracted: extractFromText((body as { text: string }).text, file.name) }
+          : { fileName: file.name, size: file.size, extraction: "none" as const };
+        r = submitDocument(view.person.id, item.id, up, user.name);
       }
-      const r = submitDocument(view.person.id, item.id, up, user.name);
       setMsg(r.issues);
-      toast(r.status === "Correction Requested" ? "We found a problem with this document — see below" : "Received — it's now with HR for review");
+      toast(r.status === "Accepted" ? "Accepted — checked against your profile" : r.status === "Correction Requested" ? "We found a problem with this document — see below" : "We couldn't read this file automatically — HR will check it");
     } finally { setBusy(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
@@ -146,6 +153,16 @@ function DocCard({ item, doc, view, mode, highlight }: { item: ChecklistItem; do
           {doc.extraction && <span className="ml-2 rounded-full border border-line px-2 py-0.5 font-mono text-[9.5px]">{doc.extraction === "text" ? "read from text" : doc.extraction === "ai" ? "read by AI" : "not auto-read"}</span>}
         </div>
       )}
+      {busy && <p className="mt-2 flex items-center gap-2 rounded-lg bg-[#fbefcf] px-3 py-2 font-mono text-[11px] text-[#8a6200]"><span className="h-2 w-2 animate-pulse rounded-full bg-acc" />The document service is reading it and checking it against the profile…</p>}
+      {doc?.processing && (
+        <details className="mt-1.5 text-[12px]">
+          <summary className="cursor-pointer font-mono text-[10.5px] text-mute hover:text-ink">processed by the document service · {doc.processing.steps.length} steps{mode === "staff" ? ` · trace ${doc.processing.traceId}` : ""}</summary>
+          <ol className="mt-1.5 space-y-1">
+            {doc.processing.steps.map((st, k) => <li key={k} className="flex gap-2"><span className={st.ok ? "text-ok" : "text-bad"}>{st.ok ? "✓" : "✕"}</span><span><b>{st.label}</b> <span className="text-[#4b4338]">— {st.detail}</span><span className="ml-2 font-mono text-[10px] text-mute">{st.ms} ms</span></span></li>)}
+          </ol>
+        </details>
+      )}
+      {status === "Under Review" && <p className="mt-2 rounded-lg bg-[#fbefcf] px-3 py-2 text-[12.5px] text-[#7a5a00]">{mode === "self" ? "We couldn’t read this file automatically, so someone from HR will check it. A text-based PDF or a clearer photo can be checked straight away." : "The service couldn’t read this file, so it needs a person. Accept it or request a correction below."}</p>}
       {status === "Correction Requested" && mode === "self" && <p className="mt-2 rounded-lg bg-[#fdf0ee] px-3 py-2 text-[12.5px] text-[#8c1b14]"><b>Please upload a corrected copy.</b> Here’s what needs fixing:</p>}
       {doc?.extracted && mode === "staff" && <Comparison x={doc.extracted} view={view} />}
       {doc && <Issues issues={mode === "self" ? doc.issues.filter((i) => i.severity === "error") : doc.issues} />}
@@ -156,7 +173,7 @@ function DocCard({ item, doc, view, mode, highlight }: { item: ChecklistItem; do
       {status !== "Accepted" || mode === "staff" ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-3">
           <input ref={fileRef} type="file" hidden accept=".pdf,.png,.jpg,.jpeg,.txt,.json" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handle(f); }} />
-          <button disabled={busy} onClick={() => fileRef.current?.click()} className="rounded-xl border border-white/60 bg-[#f7f3ea] px-3.5 py-2 font-mono text-[11px] uppercase tracking-[.1em] shadow-[0_2px_0_#b9ae96] disabled:opacity-50">{busy ? "Reading…" : status === "Not Submitted" ? "Upload file" : "Upload a new copy"}</button>
+          <button disabled={busy} onClick={() => fileRef.current?.click()} className="rounded-xl border border-white/60 bg-[#f7f3ea] px-3.5 py-2 font-mono text-[11px] uppercase tracking-[.1em] shadow-[0_2px_0_#b9ae96] disabled:opacity-50">{busy ? "Processing…" : status === "Not Submitted" ? "Upload file" : "Upload a new copy"}</button>
           <span className="text-[11px] text-mute">PDF, JPG or PNG · max 5 MB</span>
           <span className="flex-1" />
           <select value={variant} onChange={(e) => setVariant(e.target.value as SampleVariant)} className="rounded-lg border border-line bg-[#fffdf7] px-2 py-1.5 font-mono text-[10.5px]" aria-label="sample type">

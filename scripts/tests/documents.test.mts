@@ -71,8 +71,8 @@ ok("last working day after joining → DATE_ORDER", (() => {
 
 console.log("outcomes");
 ok("errors → Correction Requested", statusAfterValidation(run("id_proof", "wrongName")) === "Correction Requested");
-ok("clean → Under Review (HR still decides)", statusAfterValidation(run("id_proof", "valid")) === "Under Review");
-ok("warnings only → Under Review, warning kept for HR", (() => { const i = validateDocument(DOC_TYPES.id_proof, { ...extractFromText(makeSampleDocument("id_proof", riya).content), name: "Riya K Sharma" }, riya); return statusAfterValidation(i) === "Under Review" && i.some((x) => x.code === "NAME_CLOSE"); })());
+ok("clean → Accepted automatically", statusAfterValidation(run("id_proof", "valid")) === "Accepted");
+ok("warnings only → Accepted, warning kept on the record", (() => { const i = validateDocument(DOC_TYPES.id_proof, { ...extractFromText(makeSampleDocument("id_proof", riya).content), name: "Riya K Sharma" }, riya); return statusAfterValidation(i) === "Accepted" && i.some((x) => x.code === "NAME_CLOSE"); })());
 const multi = run("id_proof", "wrongName").concat(run("id_proof", "expired"));
 ok("every issue message is plain English with no codes/jargon", multi.every((i) => i.message.length > 25 && !/undefined|\[object/.test(i.message)));
 console.log("   sample messages:");

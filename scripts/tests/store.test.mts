@@ -39,16 +39,18 @@ console.log("document flow: submit → validate → correct → review → agent
   ok("the item is now BLOCKED, not merely pending", states("Riya")[item("Riya", "R-DOC-ID").id] === "blocked");
   ok("things behind it are blocked too (background check waits on ID)", ["blocked", "overdue"].includes(states("Riya")[item("Riya", "R-BGV").id]));
   const again = upload("Riya", "R-DOC-ID", "id_proof", "valid");
-  ok("re-upload of a correct copy → Under Review, attempt count rises (the seeded copy was attempt 1)", again.status === "Under Review" && S().docs[item("Riya", "R-DOC-ID").id].attempts === 3, String(S().docs[item("Riya", "R-DOC-ID").id].attempts));
-  ok("…not yet complete until HR decides", item("Riya", "R-DOC-ID").status !== "completed");
-  S().reviewDocument(pid, item("Riya", "R-DOC-ID").id, "accept", "Looks good", "Priya Nair");
-  ok("HR accepts → Accepted and the item completes", S().docs[item("Riya", "R-DOC-ID").id].status === "Accepted" && item("Riya", "R-DOC-ID").status === "completed");
-  ok("every step is in the audit trail with actor", ["Document re-submitted", "Validation failed → Correction Requested", "Validation passed → Under Review", "Document accepted"].every((a) => auditFor("Riya").some((x) => x.action === a)) && auditFor("Riya").some((x) => x.actor === "Priya Nair" && x.action === "Document accepted"), auditFor("Riya").map((a) => a.action).join(" | "));
+  ok("re-upload of a correct copy → Accepted by the document service, attempt count rises (the seeded copy was attempt 1)", again.status === "Accepted" && S().docs[item("Riya", "R-DOC-ID").id].attempts === 3, String(S().docs[item("Riya", "R-DOC-ID").id].attempts));
+  ok("…and the item completes by itself, with nobody clicking accept", item("Riya", "R-DOC-ID").status === "completed" && !S().docs[item("Riya", "R-DOC-ID").id].reviewedBy);
+  ok("…things that were waiting on it are released (background check no longer blocked by the ID)", states("Riya")[item("Riya", "R-BGV").id] !== "blocked" || item("Riya", "R-BGV").dependsOn.some((d) => S().items[pid].find((i) => i.id === d)?.status !== "completed"));
+  ok("every step is in the audit trail, the decision made by the document service", ["Document re-submitted", "Validation failed → Correction Requested", "Document accepted automatically"].every((a) => auditFor("Riya").some((x) => x.action === a)) && auditFor("Riya").some((x) => x.actor === "Document service" && x.action === "Document accepted automatically"), auditFor("Riya").map((a) => a.action).join(" | "));
+  S().reviewDocument(pid, item("Riya", "R-DOC-ID").id, "correct", "Photo is cut off", "Priya Nair");
+  ok("HR can still overrule the service: request a correction and the item reopens", S().docs[item("Riya", "R-DOC-ID").id].status === "Correction Requested" && item("Riya", "R-DOC-ID").status !== "completed");
+  upload("Riya", "R-DOC-ID", "id_proof", "valid");
   const rej = S().submitDocument(pid, item("Riya", "R-DOC-ADDR").id, { fileName: "bill.docx", size: 5000, extraction: "none" }, "Riya Sharma");
   ok("a .docx upload is rejected and changes nothing", rej.issues[0]?.code === "FILE_TYPE" && (S().docs[item("Riya", "R-DOC-ADDR").id]?.status ?? "Not Submitted") === "Not Submitted");
   ok("…and the rejection is logged", auditFor("Riya").some((a) => a.action === "Upload rejected"));
   const pdf = S().submitDocument(pid, item("Riya", "R-DOC-ADDR").id, { fileName: "bill.pdf", size: 5000, extraction: "none" }, "Riya Sharma");
-  ok("a PDF with no AI reading goes to a human, flagged as not auto-validated", pdf.status === "Under Review" && pdf.issues[0].code === "NOT_AUTO_VALIDATED");
+  ok("a PDF nobody can read goes to a human, flagged as not auto-validated (the only case left under review)", pdf.status === "Under Review" && pdf.issues[0].code === "NOT_AUTO_VALIDATED");
 }
 
 console.log("the agent creates the record and raises tickets when the last document is accepted");
