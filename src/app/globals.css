@@ -10,10 +10,6 @@
   --color-ok: #2f7d4f;
   --color-bad: #b3261e;
   --color-warn: #c58a14;
-  --color-vio: #6d4aff;
-  --color-dark: #0b0d1a;
-  --color-dark2: #151933;
-  --color-dark3: #1e2342;
   --font-sans: var(--font-inter-tight);
   --font-mono: var(--font-jetbrains);
   --font-serif: var(--font-instrument);
@@ -39,30 +35,39 @@ body::before {
   pointer-events: none;
   z-index: 200;
 }
-button { cursor: pointer; font: inherit; color: inherit; }
-input, select { font: inherit; color: inherit; }
+
+/*
+ * Resets MUST live in a layer. Unlayered rules beat every Tailwind utility, which is how a bare
+ * `button { color: inherit }` once turned all `text-white` button labels invisible.
+ */
+@layer base {
+  button { cursor: pointer; font: inherit; color: inherit; }
+  input, select { font: inherit; color: inherit; }
+}
 
 @keyframes sj-pulse { 50% { transform: scale(.55); opacity: .6; } }
 @keyframes sj-glow { 50% { box-shadow: 0 0 0 5px rgba(196,87,47,.2); } }
 
-.mono { font-family: var(--font-jetbrains), ui-monospace, monospace; }
-.eyebrow {
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--color-mute);
-}
-.page-title { font-size: 34px; font-weight: 800; letter-spacing: -.04em; }
-.page-title i { font-family: var(--font-instrument), serif; font-weight: 400; }
+@layer components {
+  .mono { font-family: var(--font-jetbrains), ui-monospace, monospace; }
+  .eyebrow {
+    font-family: var(--font-jetbrains), monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--color-mute);
+  }
+  .page-title { font-size: 34px; font-weight: 800; letter-spacing: -.04em; }
+  .page-title i { font-family: var(--font-instrument), serif; font-weight: 400; }
 
-/* superconnect-style paper card: warm sheet with a dotted texture */
-.paper-dots {
-  background-color: var(--color-paper2);
-  background-image: radial-gradient(#d8cfba 1px, transparent 1.2px);
-  background-size: 10px 10px;
-}
-.paper-card {
-  border: 1px solid rgba(255,255,255,.6);
-  box-shadow: 0 1px 0 #fff inset, 0 6px 16px rgba(107,90,58,.13);
+  /* superconnect-style paper card: warm sheet with a dotted texture */
+  .paper-dots {
+    background-color: var(--color-paper2);
+    background-image: radial-gradient(#d8cfba 1px, transparent 1.2px);
+    background-size: 10px 10px;
+  }
+  .paper-card {
+    border: 1px solid rgba(255,255,255,.6);
+    box-shadow: 0 1px 0 #fff inset, 0 6px 16px rgba(107,90,58,.13);
+  }
 }
