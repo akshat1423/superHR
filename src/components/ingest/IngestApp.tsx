@@ -6,6 +6,7 @@ import { fmtDate, missingFields } from "@/lib/people";
 import { lvlName, personaLabel } from "@/lib/workflow";
 import { usePeople } from "@/store/people";
 import { useProvisioning } from "@/store/provisioning";
+import { useUser } from "@/components/shell/AuthProvider";
 import { toast } from "@/store/toast";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ const STEPS = ["Upload ATS CSV", "Map · resolve workflows · find gaps", "Provi
 export function IngestApp() {
   const loadBatch = usePeople((s) => s.loadBatch);
   const startRun = useProvisioning((s) => s.start);
+  const user = useUser();
   const [stage, setStage] = useState(0);
   const [parsed, setParsed] = useState<ParsedAts | null>(null);
   const [fileName, setFileName] = useState("");
@@ -34,7 +36,7 @@ export function IngestApp() {
     a.download = "sample-ats-export.csv";
     a.click();
   };
-  const start = () => { if (!parsed) return; loadBatch(parsed.people); startRun(parsed.people); setStage(2); };
+  const start = () => { if (!parsed) return; loadBatch(parsed.people); startRun(parsed.people, user.name); setStage(2); };
 
   return (
     <div className="h-full overflow-auto">

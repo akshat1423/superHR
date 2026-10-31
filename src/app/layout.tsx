@@ -4,7 +4,6 @@ import { Inter_Tight, JetBrains_Mono, Instrument_Serif } from "next/font/google"
 import "./globals.css";
 import { SessionShell } from "@/components/shell/SessionShell";
 import { Toaster } from "@/components/shell/Toaster";
-import { ProvisionDriver } from "@/components/shell/ProvisionDriver";
 
 const interTight = Inter_Tight({ variable: "--font-inter-tight", subsets: ["latin"] });
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"] });
@@ -23,7 +22,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={<div className="grid flex-1 place-items-center font-mono text-xs text-mute">Loading…</div>}>
           <SessionShell>{children}</SessionShell>
         </Suspense>
-        <ProvisionDriver />
         <Toaster />
       </body>
     </html>

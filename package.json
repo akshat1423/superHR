@@ -6,9 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:sql": "tsx scripts/print-sql.mts",
+    "db:check": "tsx scripts/check-supabase.mts",
+    "db:seed": "tsx scripts/seed-agent-events.mts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "@xyflow/react": "^12.12.0",
     "clsx": "^2.1.1",
     "jose": "^6.2.14",
@@ -33,6 +38,7 @@
     "eslint-config-next": "16.4.3",
     "simple-icons": "^16.36.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

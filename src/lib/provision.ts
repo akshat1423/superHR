@@ -79,6 +79,8 @@ export interface LogEvent {
   call?: string;
   traceId?: string;
   ms?: number;
+  /** structured detail, e.g. the full failure (cause, evidence, fix) on error events */
+  meta?: Record<string, unknown>;
 }
 
 export interface Run {
@@ -157,13 +159,13 @@ function openAction(t: Task, si: number, phase: number, tick: number, personId: 
   log(personId, SERVICES[si].id, "info", `${ph.label}…`, { call: ph.call, traceId: t.traceId });
 }
 
-function closeAction(t: Task, si: number, tick: number, status: "ok" | "failed", personId: string, log: Log, failText?: string) {
+function closeAction(t: Task, si: number, tick: number, status: "ok" | "failed", personId: string, log: Log, failText?: string, meta?: Record<string, unknown>) {
   const a = t.actions[t.actions.length - 1];
   a.status = status;
   a.finishedAt = tick;
   a.ms = Math.round((tick - a.startedAt) * MS_PER_TICK + hash01(t.traceId + a.label) * 180);
   if (status === "ok") log(personId, SERVICES[si].id, "ok", `${a.label} → ${okCode(a.call, a.label)}`, { call: a.call, traceId: t.traceId, ms: a.ms });
-  else log(personId, SERVICES[si].id, "error", `${a.label} → ${failText}`, { call: a.call, traceId: t.traceId, ms: a.ms });
+  else log(personId, SERVICES[si].id, "error", `${a.label} → ${failText}`, { call: a.call, traceId: t.traceId, ms: a.ms, meta });
 }
 
 /** Advance the whole batch by one tick (¼ second of simulated time). Pure: returns a new Run. */
@@ -249,10 +251,10 @@ export function stepRun(run: Run, people: Person[]): Run {
       if (t.failPlan !== null) {
         const f = sv.failures[t.failPlan];
         if (t.progress >= Math.ceil(((f.phase + 0.5) / L) * t.dur)) {
-          closeAction(t, si, tick, "failed", r.personId, log, `${f.code} ${f.title}`);
           const act = t.actions[t.actions.length - 1];
-          act.note = `${f.code} ${f.title}`;
           const info = { code: f.code, title: f.title, cause: f.cause(p), evidence: f.evidence(p), fix: f.fix, retryable: f.retryable, at: tick, traceId: t.traceId, action: act.label };
+          closeAction(t, si, tick, "failed", r.personId, log, `${f.code} ${f.title}`, { failure: info });
+          act.note = `${f.code} ${f.title}`;
           t.failure = info;
           t.failedAttempts = [...t.failedAttempts, info];
           t.status = "failed";
