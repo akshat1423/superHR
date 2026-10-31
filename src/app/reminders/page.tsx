@@ -1,5 +1,6 @@
 import { RemindersApp } from "@/components/reminders/RemindersApp";
+import { Guard } from "@/components/auth/Guard";
 
 export default function RemindersPage() {
-  return <RemindersApp />;
+  return <Guard area="reminders"><RemindersApp /></Guard>;
 }

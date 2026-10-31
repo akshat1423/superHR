@@ -5,6 +5,7 @@ import { SAMPLE_CSV } from "@/lib/sample";
 import { fmtDate, missingFields } from "@/lib/people";
 import { lvlName, personaLabel } from "@/lib/workflow";
 import { usePeople } from "@/store/people";
+import { useProvisioning } from "@/store/provisioning";
 import { toast } from "@/store/toast";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ const STEPS = ["Upload ATS CSV", "Map · resolve workflows · find gaps", "Provi
 
 export function IngestApp() {
   const loadBatch = usePeople((s) => s.loadBatch);
+  const startRun = useProvisioning((s) => s.start);
   const [stage, setStage] = useState(0);
   const [parsed, setParsed] = useState<ParsedAts | null>(null);
   const [fileName, setFileName] = useState("");
@@ -32,7 +34,7 @@ export function IngestApp() {
     a.download = "sample-ats-export.csv";
     a.click();
   };
-  const start = () => { if (!parsed) return; loadBatch(parsed.people); setStage(2); };
+  const start = () => { if (!parsed) return; loadBatch(parsed.people); startRun(parsed.people); setStage(2); };
 
   return (
     <div className="h-full overflow-auto">
@@ -71,7 +73,7 @@ export function IngestApp() {
         )}
 
         {stage === 1 && parsed && <Review parsed={parsed} fileName={fileName} onBack={() => setStage(0)} onStart={start} />}
-        {stage === 2 && parsed && <Provision people={parsed.people} />}
+        {stage === 2 && parsed && <Provision />}
       </div>
     </div>
   );

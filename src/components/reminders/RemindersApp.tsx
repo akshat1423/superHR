@@ -1,101 +1,95 @@
 "use client";
-import { useMemo, useState } from "react";
-import { Glyph } from "@/components/ui/Glyph";
-import { deriveSteps, type Person, type PersonStep } from "@/lib/people";
-import { fmtDay, personaLabel } from "@/lib/workflow";
-import { usePeople } from "@/store/people";
-import { toast } from "@/store/toast";
+import { useEffect, useMemo, useState } from "react";
+import { Seg } from "@/components/ui/Seg";
+import { useScopedPeople, useUser } from "@/components/shell/AuthProvider";
+import { scopeLabel } from "@/lib/auth/policy";
+import { LADDER_LABEL, type Level } from "@/lib/email";
+import { deriveSteps } from "@/lib/people";
+import { useOutbox } from "@/store/outbox";
 import { cn } from "@/lib/utils";
+import { OutboxTab } from "./OutboxTab";
+import { QueueTab, type QueueItem } from "./QueueTab";
+import { ScheduledTab } from "./ScheduledTab";
 
-interface Item { person: Person; step: PersonStep; overdue: number }
-
-const channels = (owner: string) => (owner === "Candidate" ? ["WhatsApp", "Email"] : owner === "IT" || owner === "Manager" ? ["Slack"] : ["Email", "Slack"]);
-const LADDER = [
-  ["Due date", "Nudge the owner", "Slack DM · or WhatsApp for candidates"],
-  ["+1 day overdue", "Owner + their manager", "Slack thread · email"],
-  ["+3 days overdue", "Department Head", "Email · adds to weekly digest"],
-  ["+5 days overdue", "HR Head + auto-ticket", "Creates Jira / HRMS ticket"],
-];
+type Tab = "queue" | "scheduled" | "outbox";
+const LADDER_WHEN = ["Due date", "+1 day overdue", "+3 days overdue", "+5 days overdue"];
 const LAD_COLORS = ["bg-ink", "bg-warn", "bg-acc", "bg-bad"];
 
 export function RemindersApp() {
-  const people = usePeople((s) => s.people);
-  const sent = usePeople((s) => s.sent);
-  const markSent = usePeople((s) => s.markSent);
-  const [ladder, setLadder] = useState([true, true, true, true]);
+  const user = useUser();
+  const people = useScopedPeople();
+  const { ladder, toggleRung, emails } = useOutbox();
+  const [tab, setTab] = useState<Tab>("queue");
+  const [provider, setProvider] = useState<{ configured: boolean; redirected: boolean } | null>(null);
 
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/email/send").then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive && d) setProvider(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const rows = useMemo(() => people.map((person) => ({ person, steps: deriveSteps(person) })), [people]);
   const items = useMemo(() => {
-    const out: Item[] = [];
-    for (const person of people)
-      for (const step of deriveSteps(person))
-        if ((step.status === "blocked" || step.status === "active") && step.owner !== "Auto")
-          out.push({ person, step, overdue: Math.max(0, person.day - step.day) });
+    const out: QueueItem[] = [];
+    for (const { person, steps } of rows)
+      for (const step of steps)
+        if ((step.status === "blocked" || step.status === "active") && step.owner !== "Auto") out.push({ person, step, overdue: Math.max(0, person.day - step.day) });
     return out.sort((a, b) => Number(b.step.status === "blocked") - Number(a.step.status === "blocked") || b.overdue - a.overdue);
-  }, [people]);
-
-  const late = items.filter((i) => i.step.status === "blocked" || i.overdue > 1);
-  const soon = items.filter((i) => !(i.step.status === "blocked" || i.overdue > 1));
+  }, [rows]);
+  const scopeIds = useMemo(() => new Set(people.map((p) => p.id)), [people]);
+  const outCount = emails.filter((e) => scopeIds.has(e.draft.personId)).length;
 
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto grid max-w-[1240px] grid-cols-[1fr_400px] gap-[26px] px-8 pb-12 pt-1.5">
+      <div className="mx-auto grid max-w-[1240px] grid-cols-[1fr_380px] gap-[26px] px-8 pb-12 pt-1.5">
         <div>
-          <h1 className="page-title">Reminder <i>queue</i></h1>
-          <div className="eyebrow mt-1">Generated from every open stamp · escalates up the ladder automatically</div>
-          <Group title="Overdue / blocked" items={late} sent={sent} onSend={markSent} />
-          <Group title="Due today & tomorrow" items={soon} sent={sent} onSend={markSent} />
-          {!items.length && <p className="eyebrow mt-10">Nothing open — every stamp is done 🎉</p>}
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h1 className="page-title">Email <i>reminders</i></h1>
+              <div className="eyebrow mt-1">Generated from every open step · you see {scopeLabel(user)}</div>
+            </div>
+            <Seg<Tab> value={tab} onChange={setTab} options={[{ value: "queue", label: `Queue · ${items.length}` }, { value: "scheduled", label: "Scheduled" }, { value: "outbox", label: `Outbox · ${outCount}` }]} />
+          </div>
+
+          {provider && (
+            <div className={cn("mt-3 rounded-xl border px-4 py-2.5 text-[12.5px]", provider.configured ? "border-[#b8d6c1] bg-[#eef4ea] text-[#1d5234]" : "border-[#e6c978] bg-[#fbf3dc] text-[#7a5a00]")}>
+              {provider.configured
+                ? <><b>Email delivery is live.</b>{provider.redirected ? " Test mode: every message is redirected to the test inbox." : ""}</>
+                : <><b>Preview mode.</b> Emails are rendered and logged but not delivered — set <code className="font-mono">RESEND_API_KEY</code> and <code className="font-mono">EMAIL_FROM</code> on the server to send for real.</>}
+            </div>
+          )}
+
+          <div className="mt-2">
+            {tab === "queue" && <QueueTab items={items} />}
+            {tab === "scheduled" && <div className="mt-3"><ScheduledTab rows={rows} /></div>}
+            {tab === "outbox" && <div className="mt-4"><OutboxTab scopeIds={scopeIds} /></div>}
+          </div>
         </div>
+
         <div className="paper-card h-fit rounded-[22px] bg-paper2 p-[22px] shadow-[0_14px_34px_rgba(107,90,58,.17)]">
           <h3 className="text-xl tracking-[-.03em]">Escalation ladder</h3>
-          <div className="eyebrow mb-[18px] mt-1">Default for every step · override per block in the builder</div>
-          {LADDER.map(([when, who, how], i) => (
+          <div className="eyebrow mb-[18px] mt-1">Each rung is an email · switch rungs off to skip them</div>
+          {LADDER_WHEN.map((when, i) => (
             <div key={when} className="relative pb-5 pl-[34px] last:pb-0">
-              {i < LADDER.length - 1 && <span className="absolute bottom-0 left-[11px] top-6 border-l-2 border-dashed border-[#b7ac94]" />}
+              {i < 3 && <span className="absolute bottom-0 left-[11px] top-6 border-l-2 border-dashed border-[#b7ac94]" />}
               <span className={cn("absolute left-0 top-0 grid h-6 w-6 place-items-center rounded-full font-mono text-[11px] font-semibold text-white", LAD_COLORS[i])}>{i + 1}</span>
               <button
                 aria-label={`toggle ${when}`}
-                onClick={() => setLadder((l) => l.map((v, j) => (j === i ? !v : v)))}
+                onClick={() => toggleRung(i as Level)}
                 className={cn("relative float-right h-5 w-[34px] rounded-full transition-colors after:absolute after:left-[3px] after:top-[3px] after:h-3.5 after:w-3.5 after:rounded-full after:bg-white after:transition-all", ladder[i] ? "bg-ok after:left-[17px]" : "bg-[#b7ac94]")}
               />
-              <b className="text-sm">{when}</b> → {who}
-              <small className="mb-1.5 mt-0.5 block font-mono text-[11px] text-mute">{how}</small>
+              <b className="text-sm">{when}</b> → {LADDER_LABEL[i as Level]}
+              <small className="mb-1.5 mt-0.5 block font-mono text-[11px] text-mute">{["Email the person doing the work", "Email their manager (HR partner for candidates)", "Email the department head", "Email the HR head"][i]}</small>
             </div>
           ))}
-          <div className="eyebrow mb-2.5 mt-4">Candidate nudges</div>
+          <div className="eyebrow mb-2.5 mt-4">Candidate emails</div>
           <div className="flex flex-wrap gap-1.5 font-mono text-xs">
-            {[["WhatsApp every 2d", true], ["Email on T-7", false], ["Magic link, no login", false], ["Quiet hours 8p–9a", false]].map(([l, on]) => (
+            {[["Magic link, no login", true], ["Reminder every 2 days", true], ["First nudge at T-7", false], ["Quiet hours 8p–9a", false]].map(([l, on]) => (
               <span key={l as string} className={cn("rounded-full border px-[13px] py-1.5", on ? "border-ink bg-ink text-white" : "border-line bg-[#f4efe3]/70 text-[#4b4338]")}>{l}</span>
             ))}
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function Group({ title, items, sent, onSend }: { title: string; items: Item[]; sent: Record<string, true>; onSend: (k: string) => void }) {
-  if (!items.length) return null;
-  return (
-    <>
-      <div className="eyebrow mb-2.5 mt-5 !font-semibold !tracking-[.14em]">{title} · {items.length}</div>
-      {items.slice(0, 8).map(({ person, step, overdue }) => {
-        const key = `${person.id}:${step.id}`;
-        const isSent = !!sent[key];
-        const late = step.status === "blocked" || overdue > 2;
-        return (
-          <div key={key} className={cn("paper-card mb-2.5 flex items-center gap-3.5 rounded-2xl border-l-[5px] bg-paper2 px-4 py-3", isSent ? "border-l-ok opacity-55" : late ? "border-l-bad" : "border-l-acc")}>
-            <Glyph k={step.key} size={34} />
-            <div className="min-w-0 flex-1">
-              <b className="text-sm tracking-[-.01em]">{step.owner === "Candidate" ? person.name.split(" ")[0] : step.owner}: {step.title}</b>
-              <small className="mt-0.5 block font-mono text-[10.5px] text-mute">for {person.name} · {personaLabel(person.persona)} · {overdue ? `${overdue}d overdue` : `due ${fmtDay(step.day)}`}{step.note ? ` · ${step.note}` : ""}</small>
-            </div>
-            <span className="inline-flex gap-1">{channels(step.owner).map((c) => <span key={c} className="rounded-md border border-line px-1.5 py-0.5 font-mono text-[9.5px] text-[#6b6252]">{c}</span>)}</span>
-            <button className="rounded-[9px] border border-line bg-white/50 px-2.5 py-[7px] font-mono text-[10.5px] uppercase tracking-[.08em]" onClick={() => toast("Snoozed 1 day · ladder paused")}>Snooze</button>
-            <button className="rounded-[9px] border border-ink bg-ink px-2.5 py-[7px] font-mono text-[10.5px] uppercase tracking-[.08em] text-white" onClick={() => { onSend(key); toast(`Reminder sent via ${channels(step.owner).join(" + ")}`); }}>{isSent ? "Sent ✓" : "Send now"}</button>
-          </div>
-        );
-      })}
-    </>
   );
 }

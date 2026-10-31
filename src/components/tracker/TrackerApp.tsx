@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./tracker.css";
 import { DEPTS } from "@/lib/workflow";
 import { deriveSteps, healthOf, missingFields } from "@/lib/people";
-import { usePeople } from "@/store/people";
+import { useScopedPeople } from "@/components/shell/AuthProvider";
 import { toast } from "@/store/toast";
 import { Seg } from "@/components/ui/Seg";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ import { MatrixView } from "./MatrixView";
 type View = "stack" | "grid" | "matrix";
 
 export function TrackerApp() {
-  const people = usePeople((s) => s.people);
+  const people = useScopedPeople();
   const [view, setView] = useState<View>("stack");
   const [idx, setIdx] = useState(0);
   const [q, setQ] = useState("");

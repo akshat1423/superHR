@@ -5,6 +5,9 @@ import { countStatus, missingFields, visibleFields, type FieldKey, type Person, 
 import { PHASES, fmtDay, phaseOf } from "@/lib/workflow";
 import { usePeople } from "@/store/people";
 import { useBuilder } from "@/store/builder";
+import { useProvisioning } from "@/store/provisioning";
+import { taskCounts } from "@/lib/provision";
+import { ServiceList } from "@/components/agents/ServiceList";
 import { toast } from "@/store/toast";
 
 const NEXT: Record<Status, Status> = { scheduled: "active", active: "done", done: "scheduled", blocked: "active" };
@@ -14,6 +17,8 @@ export function Journey({ person, steps }: { person: Person; steps: PersonStep[]
   const setStepStatus = usePeople((s) => s.setStepStatus);
   const advanceField = usePeople((s) => s.advanceField);
   const loadPersona = useBuilder((s) => s.loadPersona);
+  const pr = useProvisioning((s) => s.run.people.find((r) => r.personId === person.id));
+  const agentCounts = pr ? taskCounts(pr) : { done: 0, waiting: 0, failed: 0, skipped: 0 };
   const c = countStatus(steps);
   const next = steps.filter((s) => s.status === "scheduled").sort((a, b) => a.day - b.day)[0];
   const missing = missingFields(person);
@@ -67,6 +72,18 @@ export function Journey({ person, steps }: { person: Person; steps: PersonStep[]
           </div>
         );
       })}
+
+      {pr && (
+        <div className="mt-3.5 border-t border-dashed border-line pt-3.5">
+          <h4 className="eyebrow mb-1 flex justify-between !text-[10.5px] !font-semibold !tracking-[.14em]">
+            <span>What the agents did · click a service</span>
+            <span style={{ color: agentCounts.failed ? "var(--color-bad)" : agentCounts.waiting ? "#a8620f" : "var(--color-ok)" }}>
+              {agentCounts.failed ? `${agentCounts.failed} failed` : agentCounts.waiting ? `${agentCounts.waiting} paused` : pr.state === "finished" ? "all done" : "in progress"}
+            </span>
+          </h4>
+          <ServiceList key={person.id} person={person} pr={pr} />
+        </div>
+      )}
 
       <div className="mt-3.5 border-t border-dashed border-line pt-3.5">
         <h4 className="eyebrow mb-2.5 flex justify-between !text-[10.5px] !font-semibold !tracking-[.14em]">
