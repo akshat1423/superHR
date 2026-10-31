@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth/session";
 import { aiConfigured } from "@/lib/ai";
 import { supabaseConfigured } from "@/lib/supabase/server";
+import { SERVICES } from "@/lib/services";
+import { modeOf } from "@/lib/serviceRuntime/runner";
 
 /**
  * Deployment check. Anyone gets `{ ok: true }` (so an uptime monitor works); a signed-in HR user also sees which
@@ -19,5 +21,7 @@ export async function GET() {
       ai: aiConfigured(),
       email: !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
     },
+    // which provisioning services talk to a real system (SERVICE_WEBHOOK_*) and which run on the sandbox connector
+    connectors: Object.fromEntries(SERVICES.map((s) => [s.id, modeOf(s.id)])),
   });
 }

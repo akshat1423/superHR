@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { SEED_BATCH_ID } from "@/lib/agentEvents";
 import type { Person } from "@/lib/people";
-import { fastForward, hasActivity, initRun, retryTask, stepRun, type Run } from "@/lib/provision";
+import { applyExecution, claimExecutions, fastForward, hasActivity, initRun, retryTask, stepRun, type Run } from "@/lib/provision";
+import type { Execution } from "@/lib/serviceRuntime/types";
 import { usePeople } from "./people";
 
 export type Speed = "1" | "4" | "10";
@@ -24,6 +25,10 @@ interface ProvisioningState {
   start: (people: Person[], by: string) => void;
   tick: (n: number) => void;
   retry: (personId: string, svcId: string, by: string) => void;
+  /** server calls the engine is waiting to make (each is returned once) */
+  claim: () => { personId: string; service: string; attempt: number; retry: boolean; person: Person }[];
+  /** the server answered (or could not) for one service */
+  apply: (personId: string, service: string, ex: Execution | null, why?: string) => void;
   markFlushed: (seq: number, count: number) => void;
   setSync: (s: SyncState) => void;
 }
@@ -43,7 +48,7 @@ export const useProvisioning = create<ProvisioningState>((set, get) => ({
   sync: "idle",
   setSpeed: (speed) => set({ speed }),
   start: (people, by) =>
-    set({ batch: people, run: initRun(people), batchId: `b-${Date.now().toString(36)}`, startedBy: by, flushedSeq: 0, stored: 0, sync: "idle" }),
+    set({ batch: people, run: initRun(people, true), batchId: `b-${Date.now().toString(36)}`, startedBy: by, flushedSeq: 0, stored: 0, sync: "idle" }),
   tick: (n) => {
     const { run, batch } = get();
     if (!hasActivity(run)) return;
@@ -52,6 +57,14 @@ export const useProvisioning = create<ProvisioningState>((set, get) => ({
     set({ run: next });
   },
   retry: (personId, svcId, by) => set((s) => ({ run: retryTask(s.run, personId, svcId, by) })),
+  claim: () => {
+    const { run, jobs } = claimExecutions(get().run);
+    if (!jobs.length) return [];
+    set({ run });
+    const byId = new Map(get().batch.map((p) => [p.id, p]));
+    return jobs.flatMap((j) => { const person = byId.get(j.personId); return person ? [{ ...j, person }] : []; });
+  },
+  apply: (personId, service, ex, why) => set((s) => ({ run: applyExecution(s.run, personId, service, ex, why) })),
   markFlushed: (seq, count) => set((s) => ({ flushedSeq: Math.max(s.flushedSeq, seq), stored: s.stored + count, sync: "ok" })),
   setSync: (sync) => set({ sync }),
 }));

@@ -58,6 +58,14 @@ npm test                                             # 257 domain checks, no ser
 BASE_URL=http://localhost:3000 npm run test:e2e      # 39 checks as each persona against a running app
 ```
 
+## Provisioning services (server functions)
+
+Each of the ten services (email & SSO, offer letter, app access, background check, payroll, ID card, premises, day-1 agenda, document collection, reminders) is a server function: `POST /api/services/<id>` with `{ person, attempt, retry }` runs every API call the service makes, in order, and returns each call's request, response and timing, plus the artifact it created or the failure (code, cause, evidence, fix). HR may run any; a department head only their own department. The browser engine asks the server when a service becomes ready and replays what came back, so **Agents → Logs / Failures / the per-person drill-down show the server's calls** (open "request & response" on any call). If the server can't be reached the run falls back to the local simulation and the log says so.
+
+- **Sandbox connector (default):** answers like a healthy system, and fails a deterministic ~9% of runs so there is something to diagnose; a retry after the cause is fixed succeeds.
+- **Live connector:** set `SERVICE_WEBHOOK_<SERVICE_ID>` (e.g. `SERVICE_WEBHOOK_IDENTITY_SVC=https://hooks.acme.com/identity`) and that service calls your system instead, once per API call. The request is JSON `{ service, trace, attempt, phase: {index,label,call}, request, person }`, signed with HMAC-SHA256 in `x-superjoin-signature` (key `SERVICE_WEBHOOK_SECRET`). Answer `{ ok, status?, response?, artifact?, paused?, error?: { code, title, cause, fix, retryable } }`. Timeouts and unreachable connectors become diagnosable failures.
+- `/api/health` (as HR) shows which services are sandbox or live. No real vendor integrations (Google Workspace, Okta, Slack…) ship in this repo: they plug in behind the webhooks.
+
 ## Deploy to Vercel
 
 1. Push this repo to GitHub and **Import** it in Vercel (framework: Next.js; no build settings to change). Node ≥ 20.9.

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { canSeeAgentLogs } from "@/lib/auth/policy";
 import type { IngestEvent } from "@/lib/agentEvents";
 import { hasActivity } from "@/lib/provision";
+import type { Execution } from "@/lib/serviceRuntime/types";
 import { useProvisioning } from "@/store/provisioning";
 import { useUserOrNull } from "./AuthProvider";
 
@@ -24,6 +25,29 @@ export function ProvisionDriver() {
     const id = setInterval(() => useProvisioning.getState().tick(Number(speed)), 250);
     return () => clearInterval(id);
   }, [active, speed]);
+
+  // services run on the server: send each one the engine is waiting on, then hand the answer back to the engine
+  const canRun = !!user && canSeeAgentLogs(user);
+  useEffect(() => {
+    if (!canRun) return;
+    const send = async (j: ReturnType<ReturnType<typeof useProvisioning.getState>["claim"]>[number]) => {
+      const s = useProvisioning.getState();
+      try {
+        const res = await fetch(`/api/services/${j.service}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ person: j.person, attempt: j.attempt, retry: j.retry }),
+          signal: AbortSignal.timeout(30_000),
+        });
+        if (!res.ok) { s.apply(j.personId, j.service, null, `HTTP ${res.status}`); return; }
+        s.apply(j.personId, j.service, (await res.json()) as Execution);
+      } catch {
+        s.apply(j.personId, j.service, null, "no response");
+      }
+    };
+    const id = setInterval(() => { for (const j of useProvisioning.getState().claim()) void send(j); }, 200);
+    return () => clearInterval(id);
+  }, [canRun]);
 
   const canStore = !!user && canSeeAgentLogs(user);
   const dept = user?.dept;

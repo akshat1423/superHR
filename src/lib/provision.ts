@@ -1,6 +1,7 @@
 import type { Person } from "./people";
 import { SERVICES, serviceIndex } from "./services";
 import { hash01 } from "./utils";
+import type { Execution } from "./serviceRuntime/types";
 
 export const TICKS_PER_SEC = 4;
 const MS_PER_TICK = 1000 / TICKS_PER_SEC;
@@ -9,7 +10,7 @@ export const CONCURRENCY = 4;
 /** a transient error backs off for ~1.5s before the agent retries by itself */
 const RETRY_TICKS = 6;
 /** share of service runs that hit a real (non-transient) failure */
-const FAIL_RATE = 0.09;
+export const FAIL_RATE = 0.09;
 
 export type TaskStatus = "queued" | "running" | "retry" | "done" | "waiting" | "failed" | "skipped";
 /** a task in one of these states will not change by itself */
@@ -24,6 +25,10 @@ export interface ActionRec {
   finishedAt: number | null;
   ms: number | null;
   note?: string;
+  /** what the server sent and got back for this call (set when the service ran on the server) */
+  http?: number;
+  request?: string;
+  response?: string;
 }
 
 export interface FailureInfo {
@@ -57,6 +62,12 @@ export interface Task {
   failedAttempts: FailureInfo[];
   attempts: number;
   traceId: string;
+  /** server-run: waiting for the server function to answer; progress is held until it does */
+  awaiting?: boolean;
+  /** the server call for this attempt has been sent */
+  requested?: boolean;
+  /** what the server did; the engine replays it. Absent means the local simulation decides. */
+  execution?: Execution | null;
 }
 
 export interface PersonRun {
@@ -84,17 +95,20 @@ export interface LogEvent {
 }
 
 export interface Run {
+  /** services run through the server functions (`/api/services/*`) instead of the local simulation */
+  remote?: boolean;
   tick: number;
   seq: number;
   people: PersonRun[];
   events: LogEvent[];
 }
 
-const trace = (personId: string, svcId: string, attempt: number) =>
+export const traceId = (personId: string, svcId: string, attempt: number) =>
   "tr_" + Math.floor(hash01(`${personId}|${svcId}|${attempt}`) * 0xffffffff).toString(16).padStart(8, "0");
 
-export function initRun(people: Person[]): Run {
+export function initRun(people: Person[], remote = false): Run {
   return {
+    remote,
     tick: 0,
     seq: 0,
     events: [],
@@ -163,8 +177,10 @@ function closeAction(t: Task, si: number, tick: number, status: "ok" | "failed",
   const a = t.actions[t.actions.length - 1];
   a.status = status;
   a.finishedAt = tick;
-  a.ms = Math.round((tick - a.startedAt) * MS_PER_TICK + hash01(t.traceId + a.label) * 180);
-  if (status === "ok") log(personId, SERVICES[si].id, "ok", `${a.label} → ${okCode(a.call, a.label)}`, { call: a.call, traceId: t.traceId, ms: a.ms });
+  const sr = t.execution?.phases[t.actions.length - 1];
+  a.ms = sr ? sr.ms : Math.round((tick - a.startedAt) * MS_PER_TICK + hash01(t.traceId + a.label) * 180);
+  if (sr) { a.http = sr.httpStatus; a.request = sr.request; a.response = sr.response; }
+  if (status === "ok") log(personId, SERVICES[si].id, "ok", `${a.label} → ${sr ? `${sr.httpStatus} ${sr.httpStatus === 201 ? "Created" : "OK"}` : okCode(a.call, a.label)}`, { call: a.call, traceId: t.traceId, ms: a.ms });
   else log(personId, SERVICES[si].id, "error", `${a.label} → ${failText}`, { call: a.call, traceId: t.traceId, ms: a.ms, meta });
 }
 
@@ -205,7 +221,10 @@ export function stepRun(run: Run, people: Person[]): Run {
           t.status = "running";
           t.startedAt = tick;
           t.attempts++;
-          t.traceId = trace(r.personId, sv.id, t.attempts);
+          t.traceId = traceId(r.personId, sv.id, t.attempts);
+          t.execution = null;
+          t.requested = false;
+          t.awaiting = !!run.remote;
           openAction(t, si, 0, tick, r.personId, log);
         } else if (ready.kind === "blocked") {
           t.status = "waiting";
@@ -227,6 +246,7 @@ export function stepRun(run: Run, people: Person[]): Run {
       }
 
       if (t.status !== "running") return;
+      if (t.awaiting) return;
 
       t.progress++;
       const L = sv.phases.length;
@@ -247,29 +267,29 @@ export function stepRun(run: Run, people: Person[]): Run {
         openAction(t, si, t.actions.length, tick, r.personId, log);
       }
 
-      // a real failure
-      if (t.failPlan !== null) {
-        const f = sv.failures[t.failPlan];
-        if (t.progress >= Math.ceil(((f.phase + 0.5) / L) * t.dur)) {
-          const act = t.actions[t.actions.length - 1];
-          const info = { code: f.code, title: f.title, cause: f.cause(p), evidence: f.evidence(p), fix: f.fix, retryable: f.retryable, at: tick, traceId: t.traceId, action: act.label };
-          closeAction(t, si, tick, "failed", r.personId, log, `${f.code} ${f.title}`, { failure: info });
-          act.note = `${f.code} ${f.title}`;
-          t.failure = info;
-          t.failedAttempts = [...t.failedAttempts, info];
-          t.status = "failed";
-          t.finishedAt = tick;
-          return;
-        }
+      // a real failure: the server's, when it ran the service; otherwise the local plan
+      const ex = t.execution;
+      const fail = ex ? (ex.failure ?? null) : t.failPlan !== null ? (() => { const f = sv.failures[t.failPlan]; return { code: f.code, title: f.title, cause: f.cause(p), evidence: f.evidence(p), fix: f.fix, retryable: f.retryable, phase: f.phase }; })() : null;
+      if (fail && t.progress >= Math.ceil(((fail.phase + 0.5) / L) * t.dur)) {
+        const act = t.actions[t.actions.length - 1];
+        const info = { code: fail.code, title: fail.title, cause: fail.cause, evidence: fail.evidence, fix: fail.fix, retryable: fail.retryable, at: tick, traceId: t.traceId, action: act.label };
+        closeAction(t, si, tick, "failed", r.personId, log, `${fail.code} ${fail.title}`, { failure: info, ...(ex ? { mode: ex.mode } : {}) });
+        act.note = `${fail.code} ${fail.title}`;
+        t.failure = info;
+        t.failedAttempts = [...t.failedAttempts, info];
+        t.status = "failed";
+        t.finishedAt = tick;
+        return;
       }
 
       if (t.progress >= t.dur) {
         closeAction(t, si, tick, "ok", r.personId, log);
-        const why = sv.waits(p);
+        const why = ex ? (ex.paused ?? null) : sv.waits(p);
+        const art = ex?.artifact ?? sv.artifact(p);
         t.status = why ? "waiting" : "done";
-        t.detail = why ?? sv.artifact(p);
+        t.detail = why ?? art;
         t.finishedAt = tick;
-        log(r.personId, sv.id, why ? "warn" : "ok", why ? `paused — ${why}` : `done · ${sv.artifact(p)}`, { traceId: t.traceId });
+        log(r.personId, sv.id, why ? "warn" : "ok", why ? `paused — ${why}` : `done · ${art}`, { traceId: t.traceId, ...(ex ? { meta: { mode: ex.mode } } : {}) });
       }
     });
 
@@ -281,7 +301,7 @@ export function stepRun(run: Run, people: Person[]): Run {
     }
   }
 
-  return { tick, seq, people: runs, events: events.slice(-6000) };
+  return { remote: run.remote, tick, seq, people: runs, events: events.slice(-6000) };
 }
 
 /**
@@ -296,7 +316,7 @@ export function retryTask(run: Run, personId: string, svcId: string, by: string)
   const events = [...run.events];
   const runs = run.people.map((r, i) => (i !== pi ? r : { ...r, tasks: r.tasks.map((t) => ({ ...t })) }));
   const r = runs[pi];
-  const reset = (t: Task) => Object.assign(t, { status: "queued" as TaskStatus, progress: 0, retried: false, transientAt: null, failPlan: null, failure: null, detail: "", startedAt: null, finishedAt: null, actions: [], retryLeft: 0 });
+  const reset = (t: Task) => Object.assign(t, { status: "queued" as TaskStatus, progress: 0, retried: false, transientAt: null, failPlan: null, failure: null, detail: "", startedAt: null, finishedAt: null, actions: [], retryLeft: 0, awaiting: false, requested: false, execution: null });
   reset(r.tasks[si]);
   r.tasks.forEach((t) => { if (t.status === "skipped") reset(t); });
   r.state = "running";
@@ -332,3 +352,34 @@ export const taskCounts = (r: PersonRun) => ({
   failed: r.tasks.filter((t) => t.status === "failed").length,
   skipped: r.tasks.filter((t) => t.status === "skipped").length,
 });
+
+/** Server-run tasks whose call has not been sent yet: marks them sent and returns what to ask the server. */
+export function claimExecutions(run: Run): { run: Run; jobs: { personId: string; service: string; attempt: number; retry: boolean }[] } {
+  if (!run.remote) return { run, jobs: [] };
+  const jobs: { personId: string; service: string; attempt: number; retry: boolean }[] = [];
+  const people = run.people.map((pr) => {
+    if (!pr.tasks.some((t) => t.awaiting && !t.requested)) return pr;
+    return {
+      ...pr,
+      tasks: pr.tasks.map((t, si) => {
+        if (!(t.awaiting && !t.requested)) return t;
+        jobs.push({ personId: pr.personId, service: SERVICES[si].id, attempt: t.attempts, retry: t.failedAttempts.length > 0 });
+        return { ...t, requested: true };
+      }),
+    };
+  });
+  return jobs.length ? { run: { ...run, people }, jobs } : { run, jobs };
+}
+
+/**
+ * The server answered (or could not): release the task so the engine replays what it did. With no execution the
+ * local simulation decides instead, and the log says so.
+ */
+export function applyExecution(run: Run, personId: string, service: string, ex: Execution | null, why?: string): Run {
+  const pi = run.people.findIndex((r) => r.personId === personId);
+  const si = serviceIndex(service);
+  if (pi < 0 || si < 0 || !run.people[pi].tasks[si].awaiting) return run;
+  const people = run.people.map((r, i) => (i !== pi ? r : { ...r, tasks: r.tasks.map((t, j) => (j !== si ? t : { ...t, awaiting: false, execution: ex, transientAt: ex ? (ex.transient ? Math.floor(t.dur * 0.55) : null) : t.transientAt })) }));
+  const events = ex ? run.events : [...run.events, { seq: run.seq + 1, t: run.tick, personId, service, kind: "warn" as LogKind, text: `service endpoint unavailable${why ? ` (${why})` : ""} — simulated locally`, traceId: run.people[pi].tasks[si].traceId }];
+  return { ...run, seq: ex ? run.seq : run.seq + 1, people, events };
+}

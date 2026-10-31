@@ -39,6 +39,8 @@ export function TaskDetail({ person, pr, si, simple }: { person: Person; pr: Per
         <span className={cn("font-semibold uppercase tracking-[.1em]", STATUS_TEXT[t.status])}>{STATUS_LABEL[t.status]}</span>
         {t.traceId && <span>trace {t.traceId}</span>}
         {t.attempts > 0 && <span>attempt {t.attempts}</span>}
+        {t.execution && <span title={t.execution.mode === "live" ? "Ran against the real system through this service's connector" : "Ran on the server against the built-in sandbox connector — set SERVICE_WEBHOOK_* to go live"} className={cn("rounded px-1.5 py-0.5 font-semibold uppercase tracking-[.08em]", t.execution.mode === "live" ? "bg-[#e6f1e9] text-[#1d5234]" : "bg-[#eee8d8] text-[#5b5244]")}>{t.execution.mode} connector</span>}
+        {t.awaiting && <span className="text-acc">calling the service…</span>}
         {t.startedAt !== null && <span>started {fmtStamp(t.startedAt)}</span>}
         {t.finishedAt !== null && <span>finished {fmtStamp(t.finishedAt)}</span>}
       </div>
@@ -57,6 +59,12 @@ export function TaskDetail({ person, pr, si, simple }: { person: Person; pr: Per
                 <div className="font-semibold">{a.label}{a.ms !== null && <span className="ml-2 font-mono text-[10px] font-normal text-mute">{a.ms} ms</span>}</div>
                 <code className="block truncate font-mono text-[10.5px] text-[#6b6252]">{a.call}</code>
                 {a.note && <div className={cn("font-mono text-[10.5px]", a.status === "failed" ? "text-bad" : "text-[#a8620f]")}>{a.note}</div>}
+                {detailed && a.request && (
+                  <details className="mt-0.5">
+                    <summary className="cursor-pointer font-mono text-[10px] text-mute hover:text-ink">request &amp; response{a.http ? ` · ${a.http}` : ""}</summary>
+                    <pre className="mt-1 max-h-40 overflow-auto rounded-lg bg-[#fffdf7] p-2 font-mono text-[10px] leading-[1.5] text-[#3d362b]">{`→ ${a.call}\n${a.request}\n\n← ${a.http ?? ""}\n${a.response ?? ""}`}</pre>
+                  </details>
+                )}
               </div>
             </li>
           ))}

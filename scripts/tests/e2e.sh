@@ -87,6 +87,27 @@ ok "signed-out is refused" "$(eq "$(code -X POST -H 'Content-Type: application/j
 ex=$(code -b "$J/yash.jar" -X POST -H 'Content-Type: application/json' -d '{"mime":"application/pdf","data":"AAAA"}' "$B/api/documents/extract")
 ok "without an AI key it says so (503) instead of pretending" "$([ "$ex" = "503" ] || [ "$ex" = "200" ] && echo 1 || echo 0)"
 
+echo "service functions (one endpoint per provisioning service)"
+ENG='{"person":{"id":"p0","name":"Yash Bansal","email":"yash@x.com","role":"ML Engineer","persona":{"type":"Full-time","dept":"Engineering","level":"Mid"},"manager":"Arjun Rao","location":"Bengaluru","grade":"L4","startDate":"2026-10-30","fields":{}},"attempt":1}'
+FIN=${ENG//Engineering/Finance}
+svc() { curl -s --max-time 60 -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$3" "$B/api/services/$2"; }
+svcc() { code -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$3" "$B/api/services/$2"; }
+ok "signed-out is refused" "$(eq "$(code -X POST -H 'Content-Type: application/json' -d "$ENG" "$B/api/services/identity-svc")" 401)"
+ok "the new joiner cannot run a service" "$(eq "$(svcc yash identity-svc "$ENG")" 403)"
+ok "a manager cannot run a service" "$(eq "$(svcc arjun identity-svc "$ENG")" 403)"
+ok "unknown service is a 404" "$(eq "$(svcc priya nope-svc "$ENG")" 404)"
+ok "bad person is a 400" "$(eq "$(svcc priya identity-svc '{"person":{"id":"x"}}')" 400)"
+ok "Engineering head can run it for Engineering" "$(eq "$(svcc vikram identity-svc "$ENG")" 200)"
+ok "…but not for Finance" "$(eq "$(svcc vikram identity-svc "$FIN")" 403)"
+for s in identity-svc letter-svc access-svc bgv-svc payroll-svc idcard-svc facility-svc agenda-svc collect-svc reminder-svc; do
+  r=$(svc priya $s "$ENG")
+  ok "$s runs on the server and reports each call" "$(eq "$(has "$r" "\"service\":\"$s\"")$(has "$r" '"phases":\[{')$(has "$r" '"mode":"sandbox"')" 111)"
+done
+r=$(svc priya identity-svc "$ENG")
+ok "the response has request and response bodies" "$(eq "$(has "$r" '"request":')$(has "$r" '"response":')" 11)"
+ok "a service can be described (HR)" "$(has "$(curl -s -b "$J/priya.jar" "$B/api/services/identity-svc")" 'Create Google Workspace mailbox')"
+ok "health lists the connector mode per service" "$(has "$(page priya /api/health)" '"identity-svc":"sandbox"')"
+
 rm -rf "$J" $J/q*.json
 echo; echo "passed $pass, failed $fail"
 [ $fail -eq 0 ]
