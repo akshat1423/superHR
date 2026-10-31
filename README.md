@@ -18,7 +18,7 @@ Sign in as one of five demo personas (`/login`). Sessions are signed HttpOnly co
 |---|---|---|---|
 | Yash Bansal | New joiner | My onboarding | only themself |
 | Arjun Rao | Manager | Tracker, Builder & Library (view only), Reminders | direct reports |
-| Vikram Singh / Neha Kapoor | Department head | all but Ingest | their department; edit their own department's workflows |
+| Vikram Singh / Neha Kapoor | Department head | all but Ingest | their department only, including workflows (they don't see other departments' in the library or builder); edit their own department's |
 | Priya Nair | HR | everything | everyone; the only one who can publish or bulk-upload |
 
 The policy table lives in `src/lib/auth/policy.ts` and is used by the proxy, the pages, the API routes and the UI.
@@ -58,8 +58,8 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 - **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
 
 ```bash
-npm test                                             # 385 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
-BASE_URL=http://localhost:3000 npm run test:e2e      # 90 checks as each persona against a running app
+npm test                                             # 391 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
+BASE_URL=http://localhost:3000 npm run test:e2e      # 97 checks as each persona against a running app
 ```
 
 ## Chat agent ("Ask superjoin")

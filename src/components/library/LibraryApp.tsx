@@ -4,13 +4,13 @@ import { useRouter } from "next/navigation";
 import { PACKS } from "@/lib/catalog";
 import { Glyph } from "@/components/ui/Glyph";
 import { Seg } from "@/components/ui/Seg";
-import { DEPTS, LEVELS, TIMELINE_BREAKS, flatSteps, personaLabel, type Dept, type EmpType, type Level, type Persona } from "@/lib/workflow";
+import { LEVELS, TIMELINE_BREAKS, flatSteps, personaLabel, type Dept, type EmpType, type Level, type Persona } from "@/lib/workflow";
 import { cn, hash01 } from "@/lib/utils";
 import { useBuilder } from "@/store/builder";
 import { useUser } from "@/components/shell/AuthProvider";
-import { canEditWorkflow } from "@/lib/auth/policy";
+import { canEditWorkflow, visibleDepartments } from "@/lib/auth/policy";
+import { usePeople } from "@/store/people";
 
-const EDITORS = ["Priya (HR)", "Arjun (Eng Head)", "Neha (Finance Head)", "Sam (HR)", "Isha (Product Head)"];
 const HEADS: Record<Dept, string> = { Engineering: "Vikram", Finance: "Neha", Product: "Isha", Business: "Rahul", People: "Priya" };
 const LEVEL_SUB: Record<Level, string> = { Intern: "stipend · conversion", Associate: "SDE-1 · Analyst", Mid: "SDE-2", Senior: "SDE-3 · Sr.", Leader: "Director+" };
 
@@ -18,12 +18,14 @@ export function LibraryApp() {
   const router = useRouter();
   const user = useUser();
   const loadPersona = useBuilder((s) => s.loadPersona);
+  const people = usePeople((s) => s.people);
+  const depts = useMemo(() => visibleDepartments(user, people), [user, people]);
   const [type, setType] = useState<EmpType>("Full-time");
   const levels: Level[] = type === "Intern" ? ["Intern"] : LEVELS.slice(1);
 
   const cards = useMemo(
     () =>
-      DEPTS.map((dept) => {
+      depts.map((dept) => {
         const base = flatSteps({ type, dept, level: type === "Intern" ? "Intern" : "Mid" }).length;
         return {
           dept,
@@ -39,14 +41,14 @@ export function LibraryApp() {
               gates: steps.filter((s) => s.ver.length).length,
               delta: steps.length - base,
               buckets,
-              editor: EDITORS[Math.floor(hash01(dept + level + type) * EDITORS.length)],
+              editor: ["Priya (HR)", "Sam (HR)", `${HEADS[dept]} (${dept} head)`][Math.floor(hash01(dept + level + type) * 3)],
               ago: Math.floor(hash01(level + dept) * 20) + 1,
             };
           }),
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [type],
+    [type, depts],
   );
 
   const open = (p: Persona) => { loadPersona(p); router.push("/builder"); };
@@ -56,8 +58,9 @@ export function LibraryApp() {
       <div className="mx-auto grid max-w-[1440px] grid-cols-[1fr_310px] gap-7 px-8 pb-10 pt-1.5">
         <div>
           <h1 className="page-title">Workflow <i>library</i></h1>
-          <div className="eyebrow mb-4 mt-1">Every persona = type × department × level · click a card to open it in the builder</div>
+          <div className="eyebrow mb-4 mt-1">{depts.length === 1 ? `${depts[0]} workflows` : "Every persona = type × department × level"} · click a card to open it in the builder</div>
           <Seg className="mb-[18px]" value={type} onChange={setType} options={(["Full-time", "Part-time", "Intern"] as const).map((t) => ({ value: t, label: t }))} />
+          {depts.length === 0 && <p className="paper-card rounded-2xl bg-paper2 p-5 text-[13px] text-[#4b4338]">There are no workflows to show yet: you can see the workflows of the departments your people are in, and you have nobody in onboarding.</p>}
           <div className="grid gap-3" style={{ gridTemplateColumns: `130px repeat(${levels.length}, 1fr)` }}>
             <div />
             {levels.map((l) => (
@@ -116,12 +119,12 @@ export function LibraryApp() {
             </table>
           </Card>
           <Card title="Recent edits">
-            {[
-              ["Arjun added", "Datadog", "to Eng · SDE-3", "2d ago · v14 · waiting HR publish"],
-              ["Priya moved", "Health insurance", "T+5 → T+2", "5d ago · all Full-time"],
-              ["Neha added approval gate for", "Corporate card", "", "1w ago · Finance"],
-              ["Sam created", "Intern · Product", "from clone", "2w ago"],
-            ].map(([a, b, c, d]) => (
+            {([
+              ["Arjun added", "Datadog", "to Eng · SDE-3", "2d ago · v14 · waiting HR publish", "Engineering"],
+              ["Priya moved", "Health insurance", "T+5 → T+2", "5d ago · all Full-time", "*"],
+              ["Neha added approval gate for", "Corporate card", "", "1w ago · Finance", "Finance"],
+              ["Sam created", "Intern · Product", "from clone", "2w ago", "Product"],
+            ] as const).filter((e) => e[4] === "*" || (depts as readonly string[]).includes(e[4])).map(([a, b, c, d]) => (
               <div key={b} className="border-b border-dashed border-line py-[7px] text-[12.5px] last:border-0">
                 {a} <b>{b}</b> {c}
                 <small className="block font-mono text-[10px] text-mute">{d}</small>

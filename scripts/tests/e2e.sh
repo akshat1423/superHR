@@ -108,6 +108,17 @@ ok "the response has request and response bodies" "$(eq "$(has "$r" '"request":'
 ok "a service can be described (HR)" "$(has "$(curl -s -b "$J/priya.jar" "$B/api/services/identity-svc")" 'Create Google Workspace mailbox')"
 ok "health lists the connector mode per service" "$(has "$(page priya /api/health)" '"identity-svc":"sandbox"')"
 
+echo "workflow library and builder show only your departments"
+lib_h=$(page priya /library); lib_f=$(page neha /library); lib_e=$(page vikram /library); lib_m=$(page arjun /library)
+row() { sed 's/<!-- -->//g' <<<"$1" | grep -o "Head: [A-Za-z]*" | sort -u | tr '\n' ' '; }
+ok "HR sees all five department rows" "$(eq "$(row "$lib_h" | wc -w | tr -d ' ')" 10)"
+ok "the head of Finance sees only the Finance row" "$(eq "$(row "$lib_f")" "Head: Neha ")"
+ok "…no other department's recent edits or editors" "$(eq "$(hasnt "$lib_f" 'Datadog')$(hasnt "$lib_f" 'Intern · Product')$(hasnt "$lib_f" 'Product head')$(hasnt "$lib_f" 'Isha')" 1111)"
+ok "the head of Engineering sees only the Engineering row" "$(eq "$(row "$lib_e")" "Head: Vikram ")"
+ok "a manager sees only the departments of their reports" "$(eq "$(row "$lib_m")" "Head: Vikram ")"
+ok "the Finance head's builder does not open on Engineering" "$(hasnt "$(page neha /builder)" 'Engineering')"
+ok "HR's builder still offers every department" "$(eq "$(has "$(page priya /builder)" 'Finance')$(has "$(page priya /builder)" 'Engineering')" 11)"
+
 echo "ATS sync API"
 ats() { curl -s --max-time 30 -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$3" "$B/api/ats/$2"; }
 atsc() { code -b "$J/$1.jar" -X POST -H 'Content-Type: application/json' -d "$3" "$B/api/ats/$2"; }

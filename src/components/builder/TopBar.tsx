@@ -1,8 +1,9 @@
 "use client";
-import { DEPTS, LEVELS, TYPES, fmtDay, lvlName, personaLabel, type Persona } from "@/lib/workflow";
+import { LEVELS, TYPES, fmtDay, lvlName, personaLabel, type Persona } from "@/lib/workflow";
 import { Button } from "@/components/ui/Button";
 import { useUser } from "@/components/shell/AuthProvider";
-import { canPublish } from "@/lib/auth/policy";
+import { canPublish, visibleDepartments } from "@/lib/auth/policy";
+import { usePeople } from "@/store/people";
 import { useBuilder } from "@/store/builder";
 import { toast } from "@/store/toast";
 import { useReadOnly, useReadOnlyReason } from "./useReadOnly";
@@ -14,6 +15,8 @@ export function TopBar() {
   const nodes = useBuilder((s) => s.nodes);
   const load = useBuilder((s) => s.loadPersona);
   const requestView = useBuilder((s) => s.requestView);
+  const people = usePeople((s) => s.people);
+  const depts = visibleDepartments(user, people);
   const readOnly = useReadOnly();
   const reason = useReadOnlyReason();
   const days = nodes.map((n) => n.data.day);
@@ -31,7 +34,7 @@ export function TopBar() {
   return (
     <div className="col-span-3 flex items-center gap-2.5">
       <Select label="Type" value={persona.type} options={TYPES.map((t) => [t, t])} onChange={(v) => change("type", v)} />
-      <Select label="Department" value={persona.dept} options={DEPTS.map((d) => [d, d])} onChange={(v) => change("dept", v)} />
+      <Select label="Department" value={persona.dept} options={depts.map((d) => [d, d])} onChange={(v) => change("dept", v)} />
       <Select label="Level" value={persona.level} options={levels.map((l) => [l, lvlName(l, persona.dept)])} onChange={(v) => change("level", v)} />
       <span className="eyebrow ml-2">{nodes.length} steps · {fmtDay(Math.min(...days))} → {fmtDay(Math.max(...days))}</span>
       <span className="flex-1" />
@@ -43,7 +46,7 @@ export function TopBar() {
         ))}
       </div>
       {readOnly ? (
-        <span title={reason} className="flex items-center gap-1.5 rounded-xl border border-line bg-[#fffdf7] px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[.1em] text-[#4b4338]">🔒 View only</span>
+        <span title={reason} className="flex items-center gap-2 rounded-xl border border-[#cdbf9f] bg-[#fbefcf] px-5 py-3 font-mono text-[14px] font-semibold uppercase tracking-[.1em] text-[#5b4a1f]"><span className="text-[17px]">🔒</span>View only</span>
       ) : (
         <>
           <span className="eyebrow">v14 · draft</span>

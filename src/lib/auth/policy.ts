@@ -1,5 +1,5 @@
 import type { Person } from "../people";
-import type { Persona } from "../workflow";
+import { DEPTS, type Dept, type Persona } from "../workflow";
 import type { DemoUser, Role } from "./users";
 
 /** Top-level areas of the dashboard. One policy table decides who can open each. */
@@ -70,6 +70,18 @@ export function inScope(u: DemoUser, p: Person): boolean {
 }
 export const scopePeople = (u: DemoUser, people: Person[]) => people.filter((p) => inScope(u, p));
 
+/**
+ * The departments whose workflows this user may see in the library and the builder: HR all of them, a department head
+ * only their own, a manager only the departments their reports are in. Nobody sees another department's workflows.
+ */
+export function visibleDepartments(u: DemoUser, people: Person[]): Dept[] {
+  if (u.role === "hr") return [...DEPTS];
+  if (u.role === "dept_head") return u.dept ? [u.dept as Dept] : [];
+  if (u.role === "manager") return DEPTS.filter((d) => people.some((p) => p.persona.dept === d && inScope(u, p)));
+  return [];
+}
+export const canViewWorkflow = (u: DemoUser, persona: Persona, people: Person[]) => visibleDepartments(u, people).includes(persona.dept);
+
 export function scopeLabel(u: DemoUser): string {
   switch (u.role) {
     case "hr": return "everyone in onboarding";
@@ -82,7 +94,7 @@ export function scopeLabel(u: DemoUser): string {
 /** What each role can do, in plain words — shown on the login page and the forbidden page. */
 export const ROLE_SUMMARY: Record<Role, string[]> = {
   hr: ["Sees every person and every department", "Edits and publishes all workflows", "Bulk-uploads from the ATS", "Full agent logs, failures and retries"],
-  dept_head: ["Sees everyone in their department", "Edits their own department’s workflows (HR publishes)", "Agent logs and failures for their department", "Retries failed services"],
-  manager: ["Sees their direct reports only", "Views workflows (read-only)", "Sends nudges and reminders", "No agent logs"],
+  dept_head: ["Sees everyone in their department", "Sees and edits only their own department’s workflows (HR publishes)", "Agent logs and failures for their department", "Retries failed services"],
+  manager: ["Sees their direct reports only", "Views (read-only) the workflows for their reports’ departments", "Sends nudges and reminders", "No agent logs"],
   employee: ["Sees only their own onboarding", "Uploads their own missing documents", "Sees what is waiting on them", "Nothing else"],
 };

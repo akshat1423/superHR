@@ -26,6 +26,17 @@ ok("managers also get escalations and service status, but no actions", toolsFor(
 ok("HR and department heads can act", [hr, head].every((d) => toolsFor(d.user).some((t) => t.name === "retry_service") && toolsFor(d.user).some((t) => t.name === "send_escalation")));
 ok("every tool has a description and a schema", toolsFor(hr.user).every((t) => t.description.length > 30 && t.input_schema.type === "object"));
 
+console.log("\nwhich departments' workflows each role can see");
+const { visibleDepartments, canViewWorkflow } = await import("../../src/lib/auth/policy");
+const allPeople = usePeople.getState().people;
+const vis = (id: string) => visibleDepartments(user(id), allPeople).join();
+ok("HR sees every department's workflows", visibleDepartments(hr.user, allPeople).length === 5);
+ok("the head of Finance sees only Finance", vis("u-neha") === "Finance");
+ok("the head of Engineering sees only Engineering", vis("u-vikram") === "Engineering");
+ok("a manager sees only the departments their reports are in", vis("u-arjun") === "Engineering");
+ok("a new joiner sees no workflows", vis("u-yash") === "");
+ok("the head of Finance can open a Finance workflow but not an Engineering one", canViewWorkflow(user("u-neha"), { type: "Full-time", dept: "Finance", level: "Mid" }, allPeople) && !canViewWorkflow(user("u-neha"), { type: "Full-time", dept: "Engineering", level: "Mid" }, allPeople));
+
 console.log("\nreading data, scoped to who is asking");
 const all = runRead("list_people", {}, hr) as R;
 ok("HR sees the whole batch", all.total === usePeople.getState().people.length, String(all.total));
