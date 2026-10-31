@@ -35,11 +35,17 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!SERVICES.some((s) => s.id === service)) return new Response(null, { status: 404 });
   if (!allow(`svc:${user.id}`, 600, 60_000)) return NextResponse.json({ error: "Too many service calls — slow down." }, { status: 429 });
 
-  const b = (await req.json().catch(() => null)) as { person?: unknown; attempt?: unknown; retry?: unknown } | null;
+  const b = (await req.json().catch(() => null)) as { person?: unknown; attempt?: unknown; retry?: unknown; action?: unknown; object?: unknown } | null;
   const person = asPerson(b?.person);
   if (!b || !person) return NextResponse.json({ error: "Send { person } with a valid id, name, persona and startDate." }, { status: 400 });
   if (user.role === "dept_head" && person.persona.dept !== user.dept) return new Response(null, { status: 403 });
   const attempt = typeof b.attempt === "number" && Number.isInteger(b.attempt) && b.attempt >= 1 && b.attempt <= 20 ? b.attempt : 1;
 
-  return NextResponse.json(await execute(service, person, { attempt, retry: b.retry === true }));
+  const action = b.action === undefined ? "provision" : b.action;
+  if (action !== "provision" && action !== "deprovision" && action !== "update") return NextResponse.json({ error: "action must be provision, deprovision or update." }, { status: 400 });
+  // an object (one application) only makes sense for access; anything else would silently run the whole service
+  const object = typeof b.object === "string" && b.object.trim() ? b.object.trim().slice(0, 80) : undefined;
+  if (b.object !== undefined && b.object !== null && (typeof b.object !== "string" || (object && service !== "access-svc"))) return NextResponse.json({ error: "object applies only to access-svc and must be an application name." }, { status: 400 });
+
+  return NextResponse.json(await execute(service, person, { attempt, retry: b.retry === true, action, object }));
 }

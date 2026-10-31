@@ -11,6 +11,7 @@ export const STATUS_LABEL: Record<TaskStatus, string> = {
   waiting: "Paused · needs input",
   failed: "Failed",
   skipped: "Skipped",
+  revoked: "Revoked",
 };
 
 /** Plain-language labels for the new joiner. */
@@ -22,6 +23,7 @@ export const SIMPLE_LABEL: Record<TaskStatus, string> = {
   waiting: "Waiting on you",
   failed: "The team is on it",
   skipped: "On hold",
+  revoked: "Closed",
 };
 
 export const STATUS_TEXT: Record<TaskStatus, string> = {
@@ -32,6 +34,7 @@ export const STATUS_TEXT: Record<TaskStatus, string> = {
   waiting: "text-[#a8620f]",
   failed: "text-bad",
   skipped: "text-mute",
+  revoked: "text-[#7a4a8a]",
 };
 
 const TONE: Record<TaskStatus, string> = {
@@ -41,6 +44,7 @@ const TONE: Record<TaskStatus, string> = {
   retry: "border-acc bg-[#fbefcf]",
   failed: "border-bad bg-[repeating-linear-gradient(135deg,#f6d6d2_0_6px,#f9e3e0_6px_12px)]",
   skipped: "border-dashed border-[#c4b99f] bg-[#eee8d8] opacity-70",
+  revoked: "border-[#bfa6cc] bg-[#ece4f0] opacity-80",
   queued: "border-dashed border-[#c4b99f] bg-transparent opacity-60",
 };
 

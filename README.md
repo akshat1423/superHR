@@ -58,9 +58,20 @@ Reminders page runs in **preview mode**: emails are rendered and logged but neve
 - **Changes & escalation** — editing a joining date or role recalculates the checklist and logs the diff; overdue approvals go to the right owner.
 
 ```bash
-npm test                                             # 425 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
-BASE_URL=http://localhost:3000 npm run test:e2e      # 106 checks as each persona against a running app
+npm test                                             # 481 checks (rules, ingest, documents, scenarios, assistant, services, chat agent, ATS); no server needed
+BASE_URL=http://localhost:3000 npm run test:e2e      # 120 checks as each persona against a running app
 ```
+
+## Changing, deprovisioning and terminating
+
+Provisioning is reversible, per person, from the **Services** tab on their record (HR, or the head of their department).
+
+- **Per service:** *Deprovision* undoes what one service created (suspend the account and sessions, void the offer, cancel payroll, release the desk…), calling the service's reverse operations on the server. *Provision again* runs it from the start.
+- **Per application:** under Access, each app (Slack, GitHub, Jira…) has its own switch: off revokes that one app only, on grants it back.
+- **Terminate onboarding** (HR only; offer withdrawn, no-show…): asks for a reason, shows exactly what will be revoked, then deprovisions everything that was created (applications and records first, the account last) and cancels what had not started. The person is marked terminated (shown on their record, listed under the dashboard's *Terminated* filter, and excluded from readiness, reminders and escalations). *Reinstate onboarding* undoes it.
+- **When details change** (joining date, role, grade, department, location, manager, employment type) the Profile editor previews what it will do to provisioning *before* you apply it, then does it: apps the new role no longer includes are revoked and new ones granted; the calendar events, desk and pass, payroll record, offer, ID card, directory entry and nudges are moved or reissued. A service that hasn't run yet is left alone: it will use the new details.
+- Every action is a call to `POST /api/services/<id>` with `action` (`provision`, `deprovision`, `update`) and an optional `object` (an app name, for access), with the same sandbox or live connector as provisioning (a live webhook is told the action and the object). Each is recorded on the service, in the agent logs and in the audit trail. A failed revoke stays visible with a retry; nothing is marked revoked unless the server said every call succeeded.
+- Revocations are saved in the browser and re-applied after a reload, so a terminated person stays terminated.
 
 ## Chat agent ("Ask superjoin")
 

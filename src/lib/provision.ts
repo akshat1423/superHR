@@ -1,7 +1,7 @@
 import type { Person } from "./people";
 import { SERVICES, serviceIndex } from "./services";
 import { hash01 } from "./utils";
-import type { Execution } from "./serviceRuntime/types";
+import type { ActionKind, ExecFailure, Execution } from "./serviceRuntime/types";
 
 export const TICKS_PER_SEC = 4;
 const MS_PER_TICK = 1000 / TICKS_PER_SEC;
@@ -12,9 +12,9 @@ const RETRY_TICKS = 6;
 /** share of service runs that hit a real (non-transient) failure */
 export const FAIL_RATE = 0.09;
 
-export type TaskStatus = "queued" | "running" | "retry" | "done" | "waiting" | "failed" | "skipped";
+export type TaskStatus = "queued" | "running" | "retry" | "done" | "waiting" | "failed" | "skipped" | "revoked";
 /** a task in one of these states will not change by itself */
-export const isTerminal = (s: TaskStatus) => s === "done" || s === "waiting" || s === "failed" || s === "skipped";
+export const isTerminal = (s: TaskStatus) => s === "done" || s === "waiting" || s === "failed" || s === "skipped" || s === "revoked";
 
 /** One API call made by an agent. The timeline of these is "what was done". */
 export interface ActionRec {
@@ -68,6 +68,14 @@ export interface Task {
   requested?: boolean;
   /** what the server did; the engine replays it. Absent means the local simulation decides. */
   execution?: Execution | null;
+  /** set when this service was deprovisioned for the person: who, why, and what the server did */
+  revocation?: { at: number; by: string; reason: string; execution: Execution } | null;
+  /** applications taken away from this person individually (access only), by name */
+  revokedObjects?: Record<string, { at: number; by: string; traceId: string }>;
+  /** the last deprovision attempt failed (the whole service, or just `object`) and can be retried */
+  revokeFailure?: (ExecFailure & { at: number; traceId: string; object?: string }) | null;
+  /** the last update made to what this service created (after a joining-date, role or location change) */
+  lastUpdate?: { at: number; by: string; reason: string; execution: Execution } | null;
 }
 
 export interface PersonRun {
@@ -149,15 +157,15 @@ export const phaseIndex = (si: number, t: Task) => {
 };
 export const phaseLabel = (si: number, t: Task) => SERVICES[si].phases[phaseIndex(si, t)].label;
 
-type Readiness = { kind: "wait" } | { kind: "go" } | { kind: "blocked"; by: string } | { kind: "skipped"; by: string };
+type Readiness = { kind: "wait" } | { kind: "go" } | { kind: "blocked"; by: string } | { kind: "skipped"; by: string; verb: "failed" | "was revoked" };
 
 /** Can this service start yet? Paused dependencies pause it; failed dependencies skip it. */
 function readiness(si: number, tasks: Task[]): Readiness {
   const d = SERVICES[si].deps;
   if (d === "all") return tasks.every((t, i) => i === si || isTerminal(t.status)) ? { kind: "go" } : { kind: "wait" };
   const deps = d.map(serviceIndex);
-  const failed = deps.find((i) => tasks[i].status === "failed" || tasks[i].status === "skipped");
-  if (failed !== undefined) return { kind: "skipped", by: SERVICES[failed].name };
+  const failed = deps.find((i) => tasks[i].status === "failed" || tasks[i].status === "skipped" || tasks[i].status === "revoked");
+  if (failed !== undefined) return { kind: "skipped", by: SERVICES[failed].name, verb: tasks[failed].status === "revoked" ? "was revoked" : "failed" };
   const paused = deps.find((i) => tasks[i].status === "waiting");
   if (paused !== undefined) return { kind: "blocked", by: SERVICES[paused].name };
   return deps.every((i) => tasks[i].status === "done") ? { kind: "go" } : { kind: "wait" };
@@ -233,9 +241,9 @@ export function stepRun(run: Run, people: Person[]): Run {
           log(r.personId, sv.id, "warn", `paused — ${t.detail}`);
         } else if (ready.kind === "skipped") {
           t.status = "skipped";
-          t.detail = `not run — ${ready.by} failed`;
+          t.detail = `not run — ${ready.by} ${ready.verb}`;
           t.startedAt = t.finishedAt = tick;
-          log(r.personId, sv.id, "warn", `skipped — upstream ${ready.by} failed`);
+          log(r.personId, sv.id, "warn", `skipped — upstream ${ready.by} ${ready.verb}`);
         }
         return;
       }
@@ -351,6 +359,7 @@ export const taskCounts = (r: PersonRun) => ({
   waiting: r.tasks.filter((t) => t.status === "waiting").length,
   failed: r.tasks.filter((t) => t.status === "failed").length,
   skipped: r.tasks.filter((t) => t.status === "skipped").length,
+  revoked: r.tasks.filter((t) => t.status === "revoked").length,
 });
 
 /** Server-run tasks whose call has not been sent yet: marks them sent and returns what to ask the server. */
@@ -382,4 +391,135 @@ export function applyExecution(run: Run, personId: string, service: string, ex: 
   const people = run.people.map((r, i) => (i !== pi ? r : { ...r, tasks: r.tasks.map((t, j) => (j !== si ? t : { ...t, awaiting: false, execution: ex, transientAt: ex ? (ex.transient ? Math.floor(t.dur * 0.55) : null) : t.transientAt })) }));
   const events = ex ? run.events : [...run.events, { seq: run.seq + 1, t: run.tick, personId, service, kind: "warn" as LogKind, text: `service endpoint unavailable${why ? ` (${why})` : ""} — simulated locally`, traceId: run.people[pi].tasks[si].traceId }];
   return { ...run, seq: ex ? run.seq : run.seq + 1, people, events };
+}
+
+// ── deprovisioning, updates and termination ─────────────────────────────────
+
+/** A change to what the services created for one person. */
+export interface ProvAction { service: string; kind: ActionKind; object?: string; reason: string }
+
+/** Is something provisioned for this person by this service (so there is something to undo or update)? */
+export const isProvisioned = (t: Task) => t.status === "done" || t.status === "waiting" || (t.status === "failed" && t.actions.some((a) => a.status === "ok"));
+
+const phaseEvents = (log: (kind: LogKind, text: string, extra?: Partial<LogEvent>) => void, ex: Execution) => {
+  for (const ph of ex.phases) log(ph.ok ? "ok" : "error", `${ph.label} → ${ph.ok ? `${ph.httpStatus} ${ph.httpStatus === 201 ? "Created" : "OK"}` : `${ph.httpStatus}`}`, { call: ph.call, traceId: ex.traceId, ms: ph.ms, ...(ph.ok ? {} : { meta: { failure: ex.failure } }) });
+};
+
+/**
+ * The server answered a deprovision, update or single-object provision (or could not). Records what happened on the
+ * task and in the log. Nothing is marked revoked unless the server said every call succeeded.
+ */
+export function applyAction(run: Run, personId: string, a: ProvAction & { by: string }, ex: Execution | null): Run {
+  const pi = run.people.findIndex((r) => r.personId === personId);
+  const si = serviceIndex(a.service);
+  if (pi < 0 || si < 0) return run;
+  let seq = run.seq;
+  const events = [...run.events];
+  const log = (kind: LogKind, text: string, extra?: Partial<LogEvent>) => events.push({ seq: ++seq, t: run.tick, personId, service: a.service, kind, text, ...extra });
+  const what = `${a.kind === "deprovision" ? "revoke" : a.kind === "update" ? "update" : "grant"}${a.object ? ` ${a.object}` : ""}`;
+  log("info", `${what} requested by ${a.by}: ${a.reason}`, ex ? { traceId: ex.traceId } : {});
+
+  const fail: Task["revokeFailure"] = ex?.failure
+    ? { ...ex.failure, at: run.tick, traceId: ex.traceId, ...(a.object ? { object: a.object } : {}) }
+    : !ex ? { code: "502", title: "The service could not be reached", cause: "The request to the service function did not complete, so nothing was changed.", evidence: "no response", fix: "Try again.", retryable: true, phase: 0, at: run.tick, traceId: "", ...(a.object ? { object: a.object } : {}) } : null;
+  if (ex) phaseEvents(log, ex);
+
+  const people = run.people.map((r, i) => (i !== pi ? r : {
+    ...r,
+    tasks: r.tasks.map((t, j) => {
+      if (j !== si) return t;
+      if (fail) { log("error", `${what} failed — ${fail.code} ${fail.title}`, { traceId: fail.traceId || undefined }); return a.kind === "update" ? t : { ...t, revokeFailure: fail }; }
+      const x = ex!;
+      if (a.kind === "update") { log("ok", `updated · ${a.reason}`, { traceId: x.traceId }); return { ...t, lastUpdate: { at: run.tick, by: a.by, reason: a.reason, execution: x } }; }
+      if (a.kind === "provision") {
+        // granting one object back (the whole-service re-run goes through reprovisionTask)
+        const rest = { ...(t.revokedObjects ?? {}) };
+        if (a.object) delete rest[a.object];
+        log("ok", `granted ${a.object ?? "access"}`, { traceId: x.traceId });
+        return { ...t, revokedObjects: rest, revokeFailure: null };
+      }
+      if (a.object) { log("ok", `revoked ${a.object}`, { traceId: x.traceId }); return { ...t, revokedObjects: { ...(t.revokedObjects ?? {}), [a.object]: { at: run.tick, by: a.by, traceId: x.traceId } }, revokeFailure: null }; }
+      log("ok", `revoked · ${a.reason}`, { traceId: x.traceId });
+      return { ...t, status: "revoked" as TaskStatus, detail: `revoked by ${a.by}`, revocation: { at: run.tick, by: a.by, reason: a.reason, execution: x }, revokeFailure: null, finishedAt: run.tick };
+    }),
+  }));
+  return { ...run, seq, people, events };
+}
+
+/** What survives a reload: the services revoked for a person, and the applications taken away individually. */
+export interface LedgerEntry {
+  services: Record<string, { at: number; by: string; reason: string; execution: Execution }>;
+  objects: Record<string, Record<string, { at: number; by: string; traceId: string }>>;
+}
+
+/**
+ * Put saved revocations back onto a freshly built run (the run itself is not saved). For a terminated person the
+ * rest of the run is closed out the same way termination closed it: nothing left queued, running or failed.
+ */
+export function restoreRevocations(run: Run, personId: string, entry: LedgerEntry | undefined, terminated: boolean): Run {
+  const pi = run.people.findIndex((r) => r.personId === personId);
+  if (pi < 0 || (!entry && !terminated)) return run;
+  const runs = run.people.map((r, i) => (i !== pi ? r : { ...r, tasks: r.tasks.map((t) => ({ ...t })) }));
+  const r = runs[pi];
+  SERVICES.forEach((sv, si) => {
+    const t = r.tasks[si];
+    const rev = entry?.services[sv.id];
+    if (rev) { t.status = "revoked"; t.detail = `revoked by ${rev.by}`; t.revocation = rev; t.finishedAt = rev.at; return; }
+    const objs = entry?.objects[sv.id];
+    if (objs) t.revokedObjects = { ...objs };
+    if (terminated && (t.status === "queued" || t.status === "running" || t.status === "retry" || t.status === "failed")) { t.status = "skipped"; t.detail = "cancelled: onboarding terminated"; t.failure = null; t.awaiting = false; }
+  });
+  if (terminated) { r.state = "finished"; r.finishedAt = r.finishedAt ?? run.tick; }
+  return { ...run, people: runs };
+}
+
+const resetTask = (t: Task) => Object.assign(t, { status: "queued" as TaskStatus, progress: 0, retried: false, transientAt: null, failPlan: null, failure: null, detail: "", startedAt: null, finishedAt: null, actions: [], retryLeft: 0, awaiting: false, requested: false, execution: null, revocation: null, revokedObjects: {}, revokeFailure: null });
+
+/** Run a revoked (or failed) service again from the start, putting back anything that was skipped because of it. */
+export function reprovisionTask(run: Run, personId: string, svcId: string, by: string): Run {
+  const pi = run.people.findIndex((r) => r.personId === personId);
+  const si = serviceIndex(svcId);
+  if (pi < 0 || si < 0 || (run.people[pi].tasks[si].status !== "revoked" && run.people[pi].tasks[si].status !== "skipped" && run.people[pi].tasks[si].status !== "failed")) return run;
+  let seq = run.seq;
+  const events = [...run.events];
+  const runs = run.people.map((r, i) => (i !== pi ? r : { ...r, tasks: r.tasks.map((t) => ({ ...t })) }));
+  const r = runs[pi];
+  resetTask(r.tasks[si]);
+  r.tasks.forEach((t) => { if (t.status === "skipped") resetTask(t); });
+  r.state = "running";
+  r.finishedAt = null;
+  events.push({ seq: ++seq, t: run.tick, personId, service: svcId, kind: "info", text: `provisioning again, requested by ${by}` });
+  return { ...run, seq, people: runs, events };
+}
+
+/**
+ * Terminating a person's onboarding: everything not yet started is cancelled, and the services that created something
+ * are returned (dependents before the things they depend on, so the account goes last) for the caller to deprovision.
+ */
+export function cancelRun(run: Run, personId: string, by: string, reason: string): { run: Run; revoke: string[] } {
+  const pi = run.people.findIndex((r) => r.personId === personId);
+  if (pi < 0) return { run, revoke: [] };
+  let seq = run.seq;
+  const events = [...run.events];
+  const revoke: string[] = [];
+  const runs = run.people.map((r, i) => (i !== pi ? r : { ...r, tasks: r.tasks.map((t) => ({ ...t, actions: t.actions.map((a) => ({ ...a })) })) }));
+  const r = runs[pi];
+  [...SERVICES].reverse().forEach((sv) => {
+    const si = serviceIndex(sv.id);
+    const t = r.tasks[si];
+    if (isProvisioned(t) || ((t.status === "running" || t.status === "retry") && t.actions.length > 0)) {
+      // a call that was mid-flight may have partly happened: cancel it and clean up
+      if (t.status === "running" || t.status === "retry") { t.status = "skipped"; t.detail = "cancelled mid-run, cleaning up"; t.awaiting = false; t.finishedAt = run.tick; }
+      revoke.push(sv.id);
+    } else if (t.status === "queued" || t.status === "running" || t.status === "retry") {
+      t.status = "skipped"; t.detail = "cancelled: onboarding terminated"; t.awaiting = false; t.startedAt = t.finishedAt = run.tick;
+    } else if (t.status === "failed") {
+      // it failed before creating anything, so there is nothing to undo; close it out rather than leave a failure on a closed record
+      t.status = "skipped"; t.detail = "cancelled: onboarding terminated (it had failed before creating anything)"; t.failure = null; t.finishedAt = run.tick;
+    }
+  });
+  r.state = "finished";
+  r.finishedAt = run.tick;
+  events.push({ seq: ++seq, t: run.tick, personId, service: "queue", kind: "warn", text: `onboarding terminated by ${by}: ${reason}${revoke.length ? ` · revoking ${revoke.length} service${revoke.length > 1 ? "s" : ""}` : ""}` });
+  return { run: { ...run, seq, people: runs, events }, revoke };
 }

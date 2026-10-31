@@ -64,6 +64,8 @@ export interface Person {
   /** things the importer couldn't resolve cleanly */
   issues: string[];
   guessed: boolean;
+  /** set when this person's onboarding was terminated (offer withdrawn, no-show…): who, when, why */
+  terminated?: { at: string; by: string; reason: string };
 }
 
 export interface PersonStep extends Step {

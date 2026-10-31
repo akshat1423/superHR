@@ -22,7 +22,7 @@ export function TrackerApp() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
 
-  const all = useMemo(() => people.map((person) => ({ person, steps: deriveSteps(person) })), [people]);
+  const all = useMemo(() => people.filter((p) => !p.terminated).map((person) => ({ person, steps: deriveSteps(person) })), [people]);
   const rows = useMemo(
     () => all.filter(({ person: p, steps }) => {
       if (q && !`${p.name} ${p.role} ${p.persona.dept} ${p.persona.type}`.toLowerCase().includes(q.toLowerCase())) return false;

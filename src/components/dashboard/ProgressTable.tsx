@@ -8,7 +8,7 @@ import { DEPTS } from "@/lib/workflow";
 import { usePortfolio, type EmployeeView } from "@/hooks/useEmployeeView";
 import { cn } from "@/lib/utils";
 
-type StatusFilter = "all" | "overdue" | "blocked" | "pending" | "complete" | "notready" | "ready";
+type StatusFilter = "all" | "overdue" | "blocked" | "pending" | "complete" | "notready" | "ready" | "terminated";
 type SortKey = "joining" | "name" | "overdue" | "open";
 
 const STRIP: Record<string, string> = { completed: "done", pending: "scheduled", blocked: "blocked", overdue: "active" };
@@ -22,6 +22,8 @@ function matches(v: EmployeeView, f: { q: string; dept: string; loc: string; sta
   if (f.loc !== "all" && p.location !== f.loc) return false;
   if (f.from && p.startDate < f.from) return false;
   if (f.to && p.startDate > f.to) return false;
+  // terminated people appear only under their own filter, so they never count towards readiness or chase lists
+  if ((f.status === "terminated") !== !!p.terminated) return false;
   const s = v.summary;
   switch (f.status) {
     case "overdue": return s.overdue > 0;
@@ -67,8 +69,8 @@ export function ProgressTable({ people }: { people: Person[] }) {
         <select value={f.dept} onChange={(e) => set("dept", e.target.value)} className={sel}><option value="all">All departments</option>{DEPTS.map((d) => <option key={d}>{d}</option>)}</select>
         <select value={f.loc} onChange={(e) => set("loc", e.target.value)} className={sel}><option value="all">All locations</option>{locations.map((l) => <option key={l}>{l}</option>)}</select>
         <select value={f.status} onChange={(e) => set("status", e.target.value as StatusFilter)} className={sel}>
-          <option value="all">Any status</option><option value="overdue">Has overdue tasks</option><option value="blocked">Has blocked tasks</option><option value="pending">Has pending tasks</option>
-          <option value="notready">Not ready for day one</option><option value="ready">Ready for day one</option><option value="complete">Fully complete</option>
+          <option value="all">Any status (active)</option><option value="overdue">Has overdue tasks</option><option value="blocked">Has blocked tasks</option><option value="pending">Has pending tasks</option>
+          <option value="notready">Not ready for day one</option><option value="ready">Ready for day one</option><option value="complete">Fully complete</option><option value="terminated">Terminated</option>
         </select>
         <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[.08em] text-mute">Joining <input type="date" value={f.from} onChange={(e) => set("from", e.target.value)} className={sel} /> – <input type="date" value={f.to} onChange={(e) => set("to", e.target.value)} className={sel} /></label>
         {(f.q || f.dept !== "all" || f.loc !== "all" || f.status !== "all" || f.from || f.to) && <button onClick={() => setF({ q: "", dept: "all", loc: "all", status: "all", from: "", to: "" })} className="rounded-lg border border-line px-3 py-2 font-mono text-[10.5px] uppercase tracking-[.08em] hover:bg-[#ece4d0]">Clear</button>}
@@ -100,7 +102,7 @@ export function ProgressTable({ people }: { people: Person[] }) {
                     <span className="text-ok">✓{s.completed}</span> <span className="text-[#4b4338]">●{s.pending}</span> <span className="text-bad">⛔{s.blocked}</span> <span className="text-[#a8620f]">⏰{s.overdue}</span>
                   </td>
                   <td className="max-w-[220px] px-3"><div className="truncate text-[12px]">{next ? next.item : <span className="text-ok">all done</span>}</div>{next && <div className="font-mono text-[10px] text-mute">{fmtHuman(next.dueDate)} · {next.owner.name}</div>}</td>
-                  <td className="px-3 text-right"><span className={cn("rounded-md border px-2 py-0.5 font-mono text-[9.5px] font-semibold", v.ready ? "border-[#9fcfae] bg-[#eef4ea] text-[#1d5234]" : "border-[#e6c978] bg-[#fbf3dc] text-[#7a5a00]")}>{v.ready ? "READY" : "NOT READY"}</span>{v.escalations.length > 0 && <span className="ml-1.5 rounded-md bg-bad px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white" title="Open escalations">{v.escalations.length}↑</span>}</td>
+                  <td className="px-3 text-right">{v.person.terminated ? <span title={`${v.person.terminated.reason} · ${v.person.terminated.by}`} className="rounded-md border border-[#e9a39c] bg-[#fdf0ee] px-2 py-0.5 font-mono text-[9.5px] font-semibold text-bad">TERMINATED</span> : <span className={cn("rounded-md border px-2 py-0.5 font-mono text-[9.5px] font-semibold", v.ready ? "border-[#9fcfae] bg-[#eef4ea] text-[#1d5234]" : "border-[#e6c978] bg-[#fbf3dc] text-[#7a5a00]")}>{v.ready ? "READY" : "NOT READY"}</span>}{v.escalations.length > 0 && <span className="ml-1.5 rounded-md bg-bad px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white" title="Open escalations">{v.escalations.length}↑</span>}</td>
                 </tr>
               );
             })}

@@ -2,6 +2,13 @@
 
 export type ConnectorMode = "sandbox" | "live";
 
+/**
+ * What a service is asked to do for a person: `provision` (the original run, or granting one object such as an app),
+ * `deprovision` (undo it: revoke access, release the desk, cancel the record) or `update` (move or reissue what was
+ * created, e.g. after a joining-date, role or location change).
+ */
+export type ActionKind = "provision" | "deprovision" | "update";
+
 /** One API call the service made, with what came back. */
 export interface PhaseResult {
   label: string;
@@ -31,6 +38,10 @@ export interface Execution {
   service: string;
   traceId: string;
   mode: ConnectorMode;
+  /** what was asked of the service (absent on executions recorded before actions existed: a provision) */
+  action?: ActionKind;
+  /** the one thing it applied to, e.g. an app name for access (absent: the whole service) */
+  object?: string;
   attempt: number;
   ok: boolean;
   phases: PhaseResult[];

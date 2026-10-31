@@ -37,6 +37,9 @@ ok "Arjun (Yash's manager) can open Yash" "$(has "$(page arjun /employees/p0)" '
 ok "Arjun cannot open Meera (not his report)" "$(has "$(page arjun /employees/p4)" 'Not in your scope')"
 ok "Engineering head cannot open Finance's Meera" "$(has "$(page vikram /employees/p4)" 'Not in your scope')"
 ok "Finance head can open Meera" "$(has "$(page neha /employees/p4)" 'Needs attention')"
+ok "HR's record page has the Services tab and the Terminate button" "$(eq "$(has "$(page priya /employees/p0)" '>Services<')$(has "$(page priya /employees/p0)" 'Terminate onboarding')" 11)"
+ok "the department head and the manager can see Services, but only HR can terminate" "$(eq "$(has "$(page vikram /employees/p0)" '>Services<')$(hasnt "$(page vikram /employees/p0)" 'Terminate onboarding')$(hasnt "$(page arjun /employees/p0)" 'Terminate onboarding')" 111)"
+ok "the dashboard can list terminated people separately" "$(has "$(page priya /tracker)" '>Terminated<')"
 ok "the new joiner cannot open the staff record page" "$(has "$(page yash /employees/p0)" 'No access to')"
 
 echo "the new joiner's own page"
@@ -120,6 +123,20 @@ for s in identity-svc letter-svc access-svc bgv-svc payroll-svc idcard-svc facil
   r=$(svc priya $s "$ENG")
   ok "$s runs on the server and reports each call" "$(eq "$(has "$r" "\"service\":\"$s\"")$(has "$r" '"phases":\[{')$(has "$r" '"mode":"sandbox"')" 111)"
 done
+act() { printf '%s,"action":"%s"%s}' "${ENG%?}" "$1" "${2:+,\"object\":\"$2\"}"; }
+r=$(svc priya identity-svc "$(act deprovision)")
+ok "deprovision runs the reverse calls on the server (suspend the account, revoke sessions)" "$(eq "$(has "$r" '"action":"deprovision"')$(has "$r" 'Suspend Okta user')$(has "$r" 'Revoke sessions')$(has "$r" '"ok":true')" 1111)"
+ok "…and has its own trace, with no artifact" "$(hasnt "$r" '"artifact"')"
+ok "update reissues the offer" "$(has "$(svc priya letter-svc "$(act update)")" 'Re-render the offer')"
+r=$(svc priya access-svc "$(act deprovision Slack)")
+ok "one app can be revoked on its own (a single call, naming the app)" "$(eq "$(has "$r" '"object":"Slack"')$(has "$r" 'Remove from Slack workspace')" 11)"
+ok "…and granted back" "$(has "$(svc priya access-svc "$(act provision Slack)")" 'Invite to Slack workspace')"
+ok "an unknown action is a 400" "$(eq "$(svcc priya identity-svc "$(act explode)")" 400)"
+ok "an app on a service other than access is a 400, not a silent whole-service run" "$(eq "$(svcc priya identity-svc "$(act deprovision Slack)")" 400)"
+ok "the head of Engineering can deprovision for their own department" "$(eq "$(svcc vikram identity-svc "$(act deprovision)")" 200)"
+ok "…but not for Finance" "$(eq "$(svcc vikram identity-svc "$(printf '%s' "$(act deprovision)" | sed 's/Engineering/Finance/')")" 403)"
+ok "a manager cannot deprovision" "$(eq "$(svcc arjun identity-svc "$(act deprovision)")" 403)"
+ok "a new joiner cannot deprovision" "$(eq "$(svcc yash identity-svc "$(act deprovision)")" 403)"
 r=$(svc priya identity-svc "$ENG")
 ok "the response has request and response bodies" "$(eq "$(has "$r" '"request":')$(has "$r" '"response":')" 11)"
 ok "a service can be described (HR)" "$(has "$(curl -s -b "$J/priya.jar" "$B/api/services/identity-svc")" 'Create Google Workspace mailbox')"

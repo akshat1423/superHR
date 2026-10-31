@@ -25,7 +25,7 @@ const view = (person: Person, items: ChecklistItem[], docs: Record<string, Docum
   const today = todayISO();
   const states = deriveStates(items, docs, today);
   const summary = summarize(items, states, person.startDate);
-  return { person, ctx, items, docs, states, summary, escalations: findEscalations(items, states, docs, ctx, directory, today), ready: isReady(summary) };
+  return { person, ctx, items, docs, states, summary, escalations: person.terminated ? [] : findEscalations(items, states, docs, ctx, directory, today), ready: !person.terminated && isReady(summary) };
 };
 
 /** Everything the UI needs to show one employee: checklist, derived states, readiness and escalations. */

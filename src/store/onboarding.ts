@@ -13,6 +13,7 @@ import { seedProgress } from "@/lib/onboarding/seed";
 import { advance } from "@/lib/onboarding/status";
 import type { AuditEntry, ChecklistItem, Directory, DocStatus, DocumentRecord, Extracted, Issue, Policy, Requirement } from "@/lib/onboarding/types";
 import { usePeople, type PersonPatch } from "./people";
+import { useProvisioning } from "./provisioning";
 
 export interface DatasetInfo { source: string; count: number; at: string }
 export interface Upload { fileName: string; size: number; extraction: "text" | "ai" | "none"; extracted?: Extracted }
@@ -284,6 +285,7 @@ export const useOnboarding = create<OnboardingState>()(
           const oldCtx = ctxOf(before);
           usePeople.getState().updatePerson(pid, patch);
           const after = person(pid)!;
+          useProvisioning.getState().syncPerson(after);
           const newCtx = ctxOf(after);
           const changes = diffContext(oldCtx, newCtx);
           if (!changes.length) return null;

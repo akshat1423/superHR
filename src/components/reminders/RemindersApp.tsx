@@ -28,7 +28,7 @@ export function RemindersApp() {
     return () => { alive = false; };
   }, []);
 
-  const rows = useMemo(() => people.map((person) => ({ person, steps: deriveSteps(person) })), [people]);
+  const rows = useMemo(() => people.filter((p) => !p.terminated).map((person) => ({ person, steps: deriveSteps(person) })), [people]);
   const items = useMemo(() => {
     const out: QueueItem[] = [];
     for (const { person, steps } of rows)

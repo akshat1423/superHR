@@ -11,7 +11,7 @@
     "db:check": "tsx scripts/check-supabase.mts",
     "db:seed": "tsx scripts/seed-agent-events.mts",
     "samples": "tsx scripts/build-samples.mts && python3 scripts/make-xlsx.py",
-    "test": "tsx scripts/tests/rules.test.mts && tsx scripts/tests/ingest.test.mts && tsx scripts/tests/documents.test.mts && tsx scripts/tests/scenarios.test.mts && tsx scripts/tests/assistant.test.mts && tsx scripts/tests/answer.test.mts && tsx scripts/tests/store.test.mts && tsx scripts/tests/services.test.mts && tsx scripts/tests/agent.test.mts && tsx scripts/tests/ats.test.mts && tsx scripts/tests/docservice.test.mts",
+    "test": "tsx scripts/tests/rules.test.mts && tsx scripts/tests/ingest.test.mts && tsx scripts/tests/documents.test.mts && tsx scripts/tests/scenarios.test.mts && tsx scripts/tests/assistant.test.mts && tsx scripts/tests/answer.test.mts && tsx scripts/tests/store.test.mts && tsx scripts/tests/services.test.mts && tsx scripts/tests/agent.test.mts && tsx scripts/tests/ats.test.mts && tsx scripts/tests/docservice.test.mts && tsx scripts/tests/deprov.test.mts",
     "test:e2e": "bash scripts/tests/e2e.sh"
   },
   "dependencies": {

@@ -72,6 +72,19 @@ export function TaskDetail({ person, pr, si, simple }: { person: Person; pr: Per
         </ol>
       </div>
 
+      {t.revocation && (
+        <div className="rounded-xl border border-[#bfa6cc] bg-[#f3eef6] px-3 py-2.5">
+          <div className="font-semibold text-[#5a3a6a]">Revoked by {t.revocation.by}</div>
+          <div className="text-[#4b4338]">{t.revocation.reason}</div>
+          <ol className="mt-1.5 space-y-1">{t.revocation.execution.phases.map((ph, k) => (
+            <li key={k} className="flex items-start gap-2"><span className="text-ok">✓</span>
+              <div className="min-w-0"><b>{ph.label}</b><span className="ml-2 font-mono text-[10px] text-mute">{ph.ms} ms · {ph.httpStatus}</span><code className="block truncate font-mono text-[10.5px] text-[#6b6252]">{ph.call}</code>
+                {detailed && <details><summary className="cursor-pointer font-mono text-[10px] text-mute hover:text-ink">request &amp; response</summary><pre className="mt-1 max-h-32 overflow-auto rounded-lg bg-[#fffdf7] p-2 font-mono text-[10px] leading-[1.5] text-[#3d362b]">{`→ ${ph.call}\n${ph.request}\n\n← ${ph.httpStatus}\n${ph.response}`}</pre></details>}
+              </div></li>))}</ol>
+          <div className="mt-1 font-mono text-[10px] text-mute">trace {t.revocation.execution.traceId} · {t.revocation.execution.mode} connector</div>
+        </div>
+      )}
+      {t.lastUpdate && detailed && <div className="font-mono text-[10.5px] text-mute">Last updated by {t.lastUpdate.by}: {t.lastUpdate.reason} (trace {t.lastUpdate.execution.traceId})</div>}
       {t.status === "done" && <div className="rounded-lg bg-[#e6f1e9] px-3 py-2 text-[#1d5234]"><b>Result:</b> {t.detail}</div>}
       {t.status === "waiting" && <div className="rounded-lg bg-[#fbefcf] px-3 py-2 text-[#8a6200]"><b>Paused:</b> {t.detail}. The rest of this person’s onboarding continues; this resumes when the missing data arrives.</div>}
       {t.status === "skipped" && <div className="rounded-lg bg-[#eee8d8] px-3 py-2 text-[#5b5244]"><b>Skipped:</b> {t.detail}. It will run automatically once that is fixed.</div>}

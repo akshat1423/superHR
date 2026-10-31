@@ -86,7 +86,7 @@ function row(d: AgentData, p: Person) {
   const items = d.items[p.id] ?? [];
   const st = states(d, p);
   const s = summarize(items, st, p.startDate);
-  return { id: p.id, name: p.name, role: p.role, department: p.persona.dept, location: p.location, joining: p.startDate, daysToJoin: daysBetween(d.today, p.startDate), items: s.total, completed: s.completed, pending: s.pending, blocked: s.blocked, overdue: s.overdue, readyForDayOne: isReady(s) };
+  return { id: p.id, name: p.name, role: p.role, department: p.persona.dept, location: p.location, joining: p.startDate, daysToJoin: daysBetween(d.today, p.startDate), items: s.total, completed: s.completed, pending: s.pending, blocked: s.blocked, overdue: s.overdue, readyForDayOne: !p.terminated && isReady(s), ...(p.terminated ? { terminated: `${p.terminated.reason} (${p.terminated.by})` } : {}) };
 }
 
 /** Run a read-only tool. Never throws: problems come back as `{ error }` for the model to relay. */
@@ -131,7 +131,7 @@ export function runRead(name: string, input: Json, d: AgentData): unknown {
     }
     case "list_escalations": {
       if (!staff) return { error: "Not available to you." };
-      const out = d.people.flatMap((p) => findEscalations(d.items[p.id] ?? [], states(d, p), d.docs, ctxOf(p), d.directory, d.today).map((e) => ({ person: p.name, personId: p.id, item: e.item, daysLate: e.daysLate, escalateTo: `${e.target.contact.name} (${e.target.role})`, level: e.level, blocking: e.blocking })));
+      const out = d.people.filter((p) => !p.terminated).flatMap((p) => findEscalations(d.items[p.id] ?? [], states(d, p), d.docs, ctxOf(p), d.directory, d.today).map((e) => ({ person: p.name, personId: p.id, item: e.item, daysLate: e.daysLate, escalateTo: `${e.target.contact.name} (${e.target.role})`, level: e.level, blocking: e.blocking })));
       return { total: out.length, escalations: out.slice(0, 25) };
     }
     case "service_status": {
